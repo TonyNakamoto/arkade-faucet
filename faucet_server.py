@@ -448,6 +448,42 @@ def _zen_shell_open(body_class: str) -> str:
     .creator-links a:hover {{ transform: translateY(-1px); filter: brightness(1.04); }}
     .creator-links svg {{ width: 18px; height: 18px; display: block; }}
     .creator-links a img {{ width: 18px; height: 18px; display: block; object-fit: contain; }}
+    .resource-links {{
+      position: fixed;
+      left: 0.8rem;
+      bottom: 0.8rem;
+      z-index: 5;
+      margin: 0;
+      display: flex;
+      gap: 0.55rem;
+      pointer-events: auto;
+    }}
+    .resource-links a {{
+      width: 30px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      color: var(--ink);
+      text-decoration: none;
+      transition: transform 120ms ease, filter 120ms ease;
+    }}
+    .resource-links a:hover {{ transform: translateY(-1px); filter: brightness(1.04); }}
+    .resource-links svg {{ width: 18px; height: 18px; display: block; }}
+    .resource-links a img {{
+      width: 18px;
+      height: 18px;
+      display: block;
+      object-fit: contain;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }}
+    .resource-links a img.arkade-a {{
+      transform: translateX(-1px);
+    }}
     .stone-offering {{
       position: relative;
       z-index: 5;
@@ -591,6 +627,20 @@ def _zen_shell_open(body_class: str) -> str:
 <path fill="currentColor" d="M4 9.2h16c.5 0 .9.4.9.9s-.4.9-.9.9h-1.7v1.7h1.2c.5 0 .9.4.9.9s-.4.9-.9.9H4.5c-.5 0-.9-.4-.9-.9s.4-.9.9-.9h1.2V11H4c-.5 0-.9-.4-.9-.9s.4-.9.9-.9Zm2.7 1.8v1.7h10.6V11H6.7Zm-1.2 5.1h13c.5 0 .9.4.9.9s-.4.9-.9.9h-13c-.5 0-.9-.4-.9-.9s.4-.9.9-.9Zm1.8-9.6 2.3-2.4c1.3-1.3 3.4-1.3 4.7 0l2.4 2.4H7.3Zm3.5-1.1-.6.6h3.7l-.6-.6c-.6-.6-1.7-.6-2.3 0Z"/>
 </svg>
 </a>
+<div class="resource-links" aria-label="arkade resources">
+<a href="https://docs.arkadeos.com/" target="_blank" rel="noopener noreferrer" aria-label="arkade docs">
+<img class="arkade-a" src="/static/arkade-a-bw.png" width="18" height="18" alt="" />
+</a>
+<a href="https://arkade.money/" target="_blank" rel="noopener noreferrer" aria-label="arkade wallet">
+<svg viewBox="0 0 24 24" aria-hidden="true">
+<g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+<circle cx="12" cy="12" r="9"/>
+<circle cx="12" cy="12" r="6.6" opacity="0.35"/>
+</g>
+<text x="12" y="15.2" text-anchor="middle" font-size="10.5" font-family="ui-sans-serif, system-ui, sans-serif" fill="currentColor">B</text>
+</svg>
+</a>
+</div>
 <div class="page">
 <div class="glass">
 """
