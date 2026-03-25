@@ -765,7 +765,7 @@ def home():
     submit_attrs = ""
     if addr_limit:
         alert = (
-            '<div class="alert err">five drops have fallen. even the earth needs time to drink.</div>'
+            '<div class="alert err" style="text-align:center">five drops have fallen. even the earth needs time to drink.</div>'
         )
         submit_label = "wait for sunrise"
         submit_attrs = ' disabled aria-disabled="true"'
