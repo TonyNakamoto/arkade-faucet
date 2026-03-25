@@ -43,8 +43,22 @@ except ImportError:
     _limiter = _NoopLim()
 
 # Background art (decorative). Falls back to gradient if an image fails to load.
-_BG_VECTEEZY = "https://static.vecteezy.com/system/resources/thumbnails/004/850/435/small_2x/beautiful-nature-colourful-tree-leaves-in-japanese-zen-garden-in-autumn-season-at-kyoto-japan-photo.jpg"
-_BG_FT = "https://t4.ftcdn.net/jpg/17/33/50/87/240_F_1733508721_M6ol5BLrT1v91xQMOFIEk81Xsaxul1na.jpg"
+_BG_IMAGE = "/static/bg-zen-garden.png"
+
+
+@app.after_request
+def _set_csp_headers(resp):
+    resp.headers.setdefault(
+        "Content-Security-Policy",
+        "default-src 'self'; "
+        "img-src 'self' data: https:; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+    )
+    return resp
 
 
 def _zen_shell_open(body_class: str) -> str:
@@ -54,9 +68,9 @@ def _zen_shell_open(body_class: str) -> str:
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Arkade faucet</title>
+  <title>arkade faucet</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600&family=Zen+Kaku+Gothic+New:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@600&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet" />
   <style>
     :root {{
       --ink: #0d0d0d;
@@ -64,6 +78,7 @@ def _zen_shell_open(body_class: str) -> str:
       --glass: rgba(255, 253, 249, 0.78);
       --glass-edge: rgba(255, 255, 255, 0.55);
       --shadow: 0 12px 48px rgba(15, 20, 25, 0.12);
+      --fs-bump: 0.2rem;
     }}
     * {{ box-sizing: border-box; }}
     html {{ height: 100%; }}
@@ -71,9 +86,13 @@ def _zen_shell_open(body_class: str) -> str:
       margin: 0;
       color: var(--ink);
       font-family: 'Zen Kaku Gothic New', system-ui, sans-serif;
-      font-size: clamp(0.8rem, 1.1vw, 0.95rem);
+      font-size: clamp(calc(0.8rem + var(--fs-bump)), 1.1vw, calc(0.95rem + var(--fs-bump)));
       line-height: 1.55;
       -webkit-font-smoothing: antialiased;
+      text-transform: lowercase;
+    }}
+    code, .prebox, textarea, .addr, .stat strong {{
+      text-transform: none;
     }}
     body.home {{
       height: 100vh;
@@ -84,6 +103,11 @@ def _zen_shell_open(body_class: str) -> str:
       min-height: 100vh;
       overflow-x: hidden;
     }}
+    body.sub.sent-view .glass {{
+      width: fit-content;
+      max-width: calc(100vw - 2rem);
+      flex: 0 1 auto;
+    }}
     .bg {{
       position: fixed;
       inset: 0;
@@ -91,8 +115,7 @@ def _zen_shell_open(body_class: str) -> str:
       background-color: #e8e4dc;
       background-image:
         linear-gradient(165deg, rgba(252, 250, 246, 0.88) 0%, rgba(240, 235, 228, 0.82) 45%, rgba(248, 244, 238, 0.9) 100%),
-        url("{_BG_VECTEEZY}"),
-        url("{_BG_FT}");
+        url("{_BG_IMAGE}");
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
@@ -109,7 +132,8 @@ def _zen_shell_open(body_class: str) -> str:
       max-height: 100vh;
     }}
     .glass {{
-      width: min(52rem, 100%);
+      width: min(calc(19rem * 2 / 3 * 2 + 12cm), calc(100vw - 2rem));
+      max-width: min(calc(19rem * 2 / 3 * 2 + 12cm), calc(100vw - 2rem));
       max-height: min(96vh, 100%);
       overflow: hidden;
       display: flex;
@@ -132,14 +156,14 @@ def _zen_shell_open(body_class: str) -> str:
       flex-shrink: 0;
     }}
     h1 {{
-      font-family: 'Noto Serif JP', serif;
-      font-weight: 600;
-      font-size: clamp(1rem, 2.2vh, 1.2rem);
+      font-family: 'Zen Kaku Gothic New', system-ui, sans-serif;
+      font-weight: 700;
+      font-size: clamp(calc(1.16rem + var(--fs-bump)), 2.5vh, calc(1.38rem + var(--fs-bump)));
       letter-spacing: 0.2em;
       margin: 0;
     }}
     .sub {{
-      font-size: clamp(0.65rem, 1.2vh, 0.72rem);
+      font-size: clamp(calc(0.65rem + var(--fs-bump)), 1.2vh, calc(0.72rem + var(--fs-bump)));
       color: var(--muted);
       letter-spacing: 0.18em;
       margin: 0.2rem 0 0;
@@ -159,17 +183,16 @@ def _zen_shell_open(body_class: str) -> str:
       .grid {{ grid-template-columns: 1fr; }}
     }}
     h2 {{
-      font-family: 'Noto Serif JP', serif;
+      font-family: 'Zen Kaku Gothic New', system-ui, sans-serif;
       font-weight: 400;
-      font-size: 0.68rem;
+      font-size: calc(0.68rem + var(--fs-bump));
       letter-spacing: 0.24em;
-      text-transform: uppercase;
       color: var(--muted);
       margin: 0 0 0.35rem;
     }}
-    p {{ margin: 0 0 0.45rem; color: var(--muted); font-size: 0.82rem; }}
-    p.lead {{ color: var(--ink); font-size: 0.78rem; line-height: 1.5; }}
-    p.hint {{ font-size: 0.72rem; line-height: 1.45; }}
+    p {{ margin: 0 0 0.45rem; color: var(--muted); font-size: calc(0.82rem + var(--fs-bump)); }}
+    p.lead {{ color: var(--ink); font-size: calc(0.78rem + var(--fs-bump)); line-height: 1.5; }}
+    p.hint {{ font-size: calc(0.68rem + var(--fs-bump)); line-height: 1.45; text-align: center; }}
     .col {{
       display: flex;
       flex-direction: column;
@@ -183,40 +206,83 @@ def _zen_shell_open(body_class: str) -> str:
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 0;
+      width: 100%;
       border-radius: 10px;
       overflow: hidden;
       border: 1px solid rgba(0, 0, 0, 0.07);
       flex-shrink: 0;
     }}
-    .stat > div {{ padding: 0.45rem 0.5rem; border-right: 1px solid rgba(0, 0, 0, 0.06); background: rgba(255, 255, 255, 0.65); }}
+    .stat > div {{ padding: 0.45rem 0.5rem; border-right: 1px solid rgba(0, 0, 0, 0.06); background: rgba(255, 255, 255, 0.65); text-align: center; }}
     .stat > div:last-child {{ border-right: none; }}
     .stat strong {{
       display: block;
       font-family: 'Noto Serif JP', serif;
-      font-size: clamp(1.15rem, 3vh, 1.45rem);
+      font-size: clamp(0.84rem, 2.2vh, 1.1rem);
       font-weight: 600;
       color: var(--ink);
       margin-top: 0.15rem;
       line-height: 1.1;
+      text-align: center;
     }}
-    .stat span {{ font-size: 0.58rem; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; }}
+    .stat span {{ font-size: calc(0.8rem + var(--fs-bump)); letter-spacing: 0.12em; color: var(--muted); font-family: 'Zen Kaku Gothic New', system-ui, sans-serif; white-space: nowrap; }}
+    .col-receive {{ text-align: center; align-items: center; }}
+    .col-receive h2 {{ margin: 0 0 0.22rem; font-size: calc(0.8rem + var(--fs-bump)); }}
+    .col-receive .lead {{ margin-bottom: 0.28rem; font-size: calc(0.68rem + var(--fs-bump)); text-align: center; }}
     .qr-wrap {{
       margin: 0.35rem auto;
-      width: min(108px, 28vw);
+      width: min(calc(104px + 0.353cm), calc(29vw + 0.353cm));
       aspect-ratio: 1;
-      border-radius: 50%;
-      border: 1px solid rgba(0, 0, 0, 0.08);
+      position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #fff;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+      padding: 0.34rem;
+      border-radius: 12px;
+      border: 1px solid rgba(122, 112, 98, 0.18);
+      background: linear-gradient(180deg, rgba(243, 237, 228, 0.88), rgba(236, 229, 219, 0.84));
+      box-shadow: 0 3px 10px rgba(40, 34, 28, 0.06);
       flex-shrink: 0;
+      overflow: hidden;
     }}
-    .qr-wrap img {{ width: 76%; height: auto; display: block; border-radius: 4px; }}
+    .qr-wrap::before {{
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-radial-gradient(
+          circle at 18% 16%,
+          rgba(122, 112, 98, 0.07) 0 1px,
+          transparent 1px 10px
+        ),
+        repeating-radial-gradient(
+          circle at 78% 82%,
+          rgba(122, 112, 98, 0.05) 0 1px,
+          transparent 1px 12px
+        );
+      pointer-events: none;
+      opacity: 0.9;
+    }}
+    .qr-wrap::after {{
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 11% 86%, rgba(120, 139, 96, 0.26) 0 4px, transparent 4px),
+        radial-gradient(circle at 88% 14%, rgba(120, 139, 96, 0.22) 0 3px, transparent 3px);
+      pointer-events: none;
+    }}
+    .qr-wrap img {{
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 4px;
+      background: #f9f8f5;
+      position: relative;
+      z-index: 1;
+    }}
     .addr {{
       font-family: ui-monospace, monospace;
-      font-size: 0.58rem;
+      font-size: calc(0.58rem + var(--fs-bump));
       word-break: break-all;
       color: var(--ink);
       background: rgba(255, 255, 255, 0.9);
@@ -228,25 +294,59 @@ def _zen_shell_open(body_class: str) -> str:
       overflow-y: auto;
       flex-shrink: 1;
     }}
+    .addr-row {{
+      width: 100%;
+      margin-top: 0.35rem;
+    }}
+    .addr-row .addr {{
+      width: 100%;
+      margin: 0;
+    }}
+    .addr-actions {{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: center;
+      justify-items: center;
+      width: 100%;
+      margin-top: 0.28rem;
+    }}
+    .btn-copy-zen {{
+      appearance: none;
+      border: 0;
+      padding: 0;
+      margin: 0;
+      background: transparent;
+      color: var(--ink);
+      text-decoration: none;
+      font: inherit;
+      text-align: center;
+      cursor: pointer;
+    }}
+    .btn-copy-zen:hover {{ filter: brightness(0.97); }}
+    .addr-actions a {{ text-decoration: none; }}
     .mini {{
-      font-size: 0.62rem;
+      font-size: calc(0.62rem + var(--fs-bump));
       color: var(--muted);
       margin-top: 0.35rem;
       text-align: center;
       flex-shrink: 0;
     }}
-    .explorer {{ font-size: 0.68rem; margin-top: 0.25rem; }}
+    .explorer {{ font-size: calc(0.68rem + var(--fs-bump)); margin-top: 0.25rem; }}
     textarea {{
       width: 100%;
-      padding: 0.5rem 0.55rem;
+      padding: 0.62rem 0.55rem;
       border-radius: 10px;
       border: 1px solid rgba(0, 0, 0, 0.1);
       background: rgba(255, 255, 255, 0.95);
       font-family: ui-monospace, monospace;
-      font-size: 0.72rem;
-      min-height: 2.75rem;
-      max-height: 5rem;
-      resize: vertical;
+      font-size: calc(0.72rem + var(--fs-bump));
+      height: auto;
+      min-height: 0;
+      max-height: none;
+      overflow: hidden;
+      word-break: break-all;
+      overflow-wrap: anywhere;
+      resize: none;
     }}
     button[type="submit"] {{
       width: 100%;
@@ -257,18 +357,18 @@ def _zen_shell_open(body_class: str) -> str:
       background: linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 100%);
       color: #faf8f5;
       font-family: 'Zen Kaku Gothic New', sans-serif;
-      font-size: 0.78rem;
+      font-size: calc(0.78rem + var(--fs-bump));
       letter-spacing: 0.18em;
       cursor: pointer;
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
     }}
     button[type="submit"]:hover {{ filter: brightness(1.08); }}
     a {{ color: var(--ink); text-underline-offset: 3px; }}
-    .alert {{ border-radius: 10px; border: 1px solid rgba(139, 115, 85, 0.45); padding: 0.5rem 0.65rem; margin-bottom: 0.45rem; background: rgba(255, 255, 255, 0.85); color: #4a4035; font-size: 0.75rem; flex-shrink: 0; }}
+    .alert {{ border-radius: 10px; border: 1px solid rgba(139, 115, 85, 0.45); padding: 0.5rem 0.65rem; margin-bottom: 0.45rem; background: rgba(255, 255, 255, 0.85); color: #4a4035; font-size: calc(0.75rem + var(--fs-bump)); flex-shrink: 0; }}
     .alert.err {{ border-color: rgba(166, 124, 124, 0.55); color: #5c3a3a; }}
     .prebox {{
       font-family: ui-monospace, monospace;
-      font-size: 0.75rem;
+      font-size: calc(0.75rem + var(--fs-bump));
       line-height: 1.5;
       border-radius: 10px;
       border: 1px solid rgba(0, 0, 0, 0.1);
@@ -282,6 +382,179 @@ def _zen_shell_open(body_class: str) -> str:
     }}
     .prebox.tall {{ max-height: min(50vh, 18rem); overflow-y: auto; }}
     .subwrap {{ max-width: 28rem; margin: 0 auto; padding: 1rem; }}
+    .sentwrap {{
+      width: fit-content;
+      max-width: none;
+      min-width: 0;
+      margin: 0 auto;
+      padding: 2rem 4rem;
+    }}
+    @media (max-width: 720px) {{
+      .sentwrap {{
+        width: auto;
+        padding: 1.25rem 1.4rem;
+      }}
+    }}
+    .creator-links {{
+      position: fixed;
+      right: 0.8rem;
+      bottom: 0.8rem;
+      z-index: 5;
+      margin: 0;
+      display: flex;
+      gap: 0.55rem;
+      pointer-events: auto;
+    }}
+    .creator-links a {{
+      width: 30px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      color: var(--ink);
+      text-decoration: none;
+      transition: transform 120ms ease, filter 120ms ease;
+    }}
+    .creator-links a:hover {{ transform: translateY(-1px); filter: brightness(1.04); }}
+    .creator-links svg {{ width: 18px; height: 18px; display: block; }}
+    .creator-links a img {{ width: 18px; height: 18px; display: block; object-fit: contain; }}
+    .stone-offering {{
+      position: relative;
+      z-index: 5;
+      width: 30px;
+      height: 30px;
+      flex-shrink: 0;
+      display: block;
+      pointer-events: auto;
+    }}
+    .stone-btn {{
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 30px;
+      height: 30px;
+      margin: 0;
+      padding: 0;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      background: rgba(255, 255, 255, 0.82);
+      border-radius: 999px;
+      cursor: pointer;
+      color: var(--ink);
+      opacity: 0.92;
+      line-height: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 120ms ease, filter 120ms ease, opacity 160ms ease;
+    }}
+    .stone-btn:hover {{ transform: translateY(-1px); filter: brightness(1.04); opacity: 1; }}
+    .stone-btn:focus-visible {{ outline: 2px solid rgba(0, 0, 0, 0.25); outline-offset: 2px; }}
+    .stone-btn svg {{ width: 21px; height: 21px; display: block; }}
+    .stone-panel {{
+      position: fixed;
+      right: 0.8rem;
+      bottom: 2.85rem;
+      left: auto;
+      top: auto;
+      width: min(15.25rem, calc(100vw - 2rem));
+      height: fit-content;
+      max-height: none;
+      overflow: visible;
+      padding: 0.45rem 0.55rem;
+      border-radius: 14px;
+      background: rgba(255, 253, 249, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.55);
+      box-shadow: 0 10px 36px rgba(15, 20, 25, 0.14);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(6px) scale(0.98);
+      transform-origin: bottom right;
+      transition: opacity 180ms ease, transform 180ms ease, visibility 180ms;
+    }}
+    @media (max-width: 720px) {{
+      .stone-panel {{
+        right: 0.55rem;
+        bottom: 2.55rem;
+        width: min(14.5rem, calc(100vw - 1.1rem));
+      }}
+    }}
+    .stone-offering.stone-offering--open .stone-panel {{
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0) scale(1);
+    }}
+    .stone-tip {{
+      margin: 0 0 0.4rem;
+      font-size: calc(0.72rem + var(--fs-bump));
+      line-height: 1.45;
+      color: var(--muted);
+      text-align: center;
+    }}
+    .stone-qr {{
+      margin: 0.25rem auto 0.45rem;
+      width: min(7.4rem, 42vw);
+      aspect-ratio: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.3rem;
+      border-radius: 10px;
+      border: 1px solid rgba(122, 112, 98, 0.18);
+      background: linear-gradient(180deg, rgba(243, 237, 228, 0.88), rgba(236, 229, 219, 0.84));
+      overflow: hidden;
+    }}
+    .stone-qr::before {{
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-radial-gradient(
+          circle at 24% 24%,
+          rgba(122, 112, 98, 0.07) 0 1px,
+          transparent 1px 9px
+        );
+      pointer-events: none;
+    }}
+    .stone-qr::after {{
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 14% 84%, rgba(120, 139, 96, 0.24) 0 3px, transparent 3px),
+        radial-gradient(circle at 86% 16%, rgba(120, 139, 96, 0.2) 0 3px, transparent 3px);
+      pointer-events: none;
+    }}
+    .stone-qr img {{
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 6px;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      background: #f9f8f5;
+      padding: 0.14rem;
+      position: relative;
+      z-index: 1;
+    }}
+    .stone-panel .addr {{ margin: 0; max-height: none; overflow: visible; font-size: calc(0.52rem + var(--fs-bump)); }}
+    .stone-panel .btn-copy {{
+      appearance: none;
+      border: 0;
+      background: transparent;
+      padding: 0;
+      margin: 0.35rem auto 0;
+      display: block;
+      color: var(--ink);
+      font: inherit;
+      font-size: calc(0.68rem + var(--fs-bump));
+      text-decoration: none;
+      cursor: pointer;
+    }}
   </style>
 </head>
 <body class="{body_class}">
@@ -291,11 +564,9 @@ def _zen_shell_open(body_class: str) -> str:
 """
 
 
-ZEN_SHELL_CLOSE = """
+ZEN_SHELL_CLOSE_GLASS_PAGE = """
 </div>
 </div>
-</body>
-</html>
 """
 
 
@@ -308,6 +579,72 @@ def _node_env():
         if os.path.isfile(ap):
             env.pop("ARKADE_MNEMONIC", None)
     return env
+
+
+def _parse_success_txid(stdout: str) -> str | None:
+    for line in (stdout or "").splitlines():
+        s = line.strip()
+        if s.startswith("SUCCESS:"):
+            return s[len("SUCCESS:") :].strip() or None
+    return None
+
+
+def _tx_explorer_url(txid: str) -> str:
+    base = (os.environ.get("ARK_TX_EXPLORER_BASE") or "https://arkade.space/tx").rstrip("/")
+    return f"{base}/{txid}"
+
+
+_DONATION_ARK_ADDRESS = (
+    "ark1qq4hfssprtcgnjzf8qlw2f78yvjau5kldfugg29k34y7j96q2w4t57000mamrghjsud6dw0kyl6zurqekz5kgee80hztenk47p7g6d6xa8gwdn"
+)
+
+
+def _stone_offering_html() -> str:
+    addr = _DONATION_ARK_ADDRESS
+    addr_title = html.escape(addr, quote=True)
+    addr_copy = html.escape(addr, quote=True)
+    qr_url = html.escape(
+        f"https://api.qrserver.com/v1/create-qr-code/?size=220x220&data={addr}",
+        quote=True,
+    )
+    return (
+        '<div class="stone-offering" id="stone-offering">'
+        '<button type="button" class="stone-btn" id="stone-btn" aria-expanded="false" '
+        'aria-controls="stone-panel" aria-label="garden offering — tip address">'
+        '<svg viewBox="0 0 48 48" aria-hidden="true">'
+        '<path fill="none" stroke="currentColor" stroke-width="2.15" stroke-linecap="round" '
+        'stroke-linejoin="round" opacity="0.88" '
+        'd="M 12 34 C 2 21  9.5 5.5  26 6 c 17 0.5  25.5 17  20 29.5 C 42 40  28 44  17 38 '
+        'c -4.5 -2.5 -7.5 -5.5 -5 -4"/>'
+        '<path fill="none" stroke="currentColor" stroke-width="0.9" stroke-linecap="round" opacity="0.35" '
+        'd="M 18 14 c 8 -3  16 2  18 10"/>'
+        "</svg></button>"
+        '<div class="stone-panel" id="stone-panel" role="region" aria-label="tip address" aria-hidden="true">'
+        '<p class="stone-tip">maintain the garden. tip via ark.</p>'
+        f'<div class="stone-qr"><img src="{qr_url}" width="220" height="220" alt="donation address qr code" /></div>'
+        f'<div class="addr" title="{addr_title}">{html.escape(addr)}</div>'
+        f'<button type="button" class="btn-copy" data-copy="{addr_copy}" aria-label="copy tip address">copy</button>'
+        "</div></div>"
+    )
+
+
+def _zen_shell_footer_html() -> str:
+    return (
+        '<script defer src="/static/faucet.js"></script>'
+        '<div class="creator-links" aria-label="creator links">'
+        '<a href="https://x.com/firstworldpeace" target="_blank" rel="noopener noreferrer" aria-label="x (twitter)">'
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.9 2H22l-6.8 7.8L23.2 22h-6.4l-5-6.5L6.1 22H3l7.3-8.4L.8 2h6.5l4.5 5.9L18.9 2zm-1.1 18h1.8L5.2 3.9H3.3L17.8 20z"/></svg>'
+        "</a>"
+        '<a href="https://njump.me/npub100763pglp04l4tt8t0scnau9xt5427f8phvcylt2dhmx67nksx2s49szvh" target="_blank" rel="noopener noreferrer" aria-label="nostr">'
+        '<img src="/static/nostr-ostrich.png" width="18" height="18" alt="" />'
+        "</a>"
+        + _stone_offering_html()
+        + "</div></body></html>"
+    )
+
+
+def zen_shell_close() -> str:
+    return ZEN_SHELL_CLOSE_GLASS_PAGE + _zen_shell_footer_html()
 
 
 def _faucet_info():
@@ -347,13 +684,13 @@ def home():
     if err:
         body = (
             '<div class="subwrap">'
-            '<div class="brand"><h1>Arkade faucet</h1><p class="sub">静 · stillness</p></div>'
-            f'<div class="alert err">Could not load wallet. Check <code>phrase.txt</code> and run '
+            '<div class="brand"><h1>arkade faucet</h1></div>'
+            f'<div class="alert err">could not load wallet. check <code>phrase.txt</code> and run '
             f'<code>unset ARKADE_MNEMONIC</code> then <code>./start_faucet.sh</code></div>'
             f'<pre class="prebox tall">{html.escape(err)}</pre>'
             "</div>"
         )
-        return _zen_shell_open("sub") + body + ZEN_SHELL_CLOSE, 500
+        return _zen_shell_open("sub") + body + zen_shell_close(), 500
 
     addr = info["address"]
     bal = info["balance"]
@@ -361,9 +698,7 @@ def home():
     explorer = info.get("explorerUrl", "")
     b64 = info.get("qrPngBase64", "")
 
-    boarding = bal.get("boarding", {}).get("total", 0)
     available = bal.get("available", 0)
-    total = bal.get("total", 0)
 
     qr_img = ""
     if b64:
@@ -376,36 +711,39 @@ def home():
     alert = ""
     if invalid:
         alert = (
-            '<div class="alert err">Use a full Ark address starting with '
-            "<code>ark1</code> (from your wallet’s Receive screen).</div>"
+            '<div class="alert err" style="text-align:center">patience. but first, precision</div>'
         )
 
     page = (
         _zen_shell_open("home")
-        + '<div class="brand"><h1>Arkade faucet</h1><p class="sub">静 · stillness</p></div>'
+        + '<div class="brand"><h1>arkade faucet</h1></div>'
         + alert
         + '<div class="grid">'
         + '<div class="col">'
         + '<div class="stat">'
-        + f"<div><span>Available · sats</span><strong>{available}</strong></div>"
-        + f"<div><span>Drip · sats</span><strong>{drip}</strong></div>"
+        + f"<div><span>available sats</span><strong>{available}</strong></div>"
+        + f"<div><span>drip sats</span><strong>{drip}</strong></div>"
         + "</div>"
-        + '<p class="hint">Scan QR with an Ark-capable wallet — you <strong>send</strong> to refill the faucet.</p>'
+        + '<p class="hint">scan qr with arkade wallet - send to refill the faucet</p>'
         + qr_img
+        + '<div class="addr-row">'
         + f'<div class="addr">{html.escape(addr)}</div>'
-        + f'<p class="explorer"><a href="{html.escape(explorer)}" target="_blank" rel="noopener">Explorer</a></p>'
         + "</div>"
-        + '<div class="col">'
-        + "<h2>Receive</h2>"
-        + '<p class="lead">Paste your <code>ark1…</code> address.</p>'
+        + '<div class="addr-actions">'
+        + f'<a href="{html.escape(explorer)}" target="_blank" rel="noopener">explorer</a>'
+        + f'<button type="button" class="btn-copy-zen" data-copy="{html.escape(addr, quote=True)}" aria-label="copy faucet address">copy</button>'
+        + "</div>"
+        + "</div>"
+        + '<div class="col col-receive">'
+        + "<h2>receive</h2>"
+        + '<p class="lead">paste your <code>ark1…</code> address</p>'
         + '<form method="post" action="/claim">'
-        + '<textarea name="address" placeholder="ark1…" required autocomplete="off" rows="2"></textarea>'
-        + '<button type="submit">Request drip</button>'
+        + '<textarea name="address" placeholder="ark1…" required autocomplete="off" rows="1"></textarea>'
+        + '<button type="submit">drip</button>'
         + "</form>"
         + "</div>"
         + "</div>"
-        + f'<p class="mini">Boarding {boarding} · Total {total}</p>'
-        + ZEN_SHELL_CLOSE
+        + zen_shell_close()
     )
     return page
 
@@ -434,25 +772,39 @@ def claim(user_address):
     detail = html.escape(result.stdout + result.stderr)
 
     if ok:
+        txid = _parse_success_txid(result.stdout)
+        if txid:
+            explorer = _tx_explorer_url(txid)
+            short_tx = txid if len(txid) <= 20 else f"{txid[:10]}…{txid[-8:]}"
+            inner = (
+                '<div class="subwrap sentwrap">'
+                '<div class="brand"><h1>sent</h1></div>'
+                f'<p class="explorer" style="text-align:center;margin-top:0.5rem">'
+                f'<a href="{html.escape(explorer)}" target="_blank" rel="noopener noreferrer">'
+                "explorer</a></p>"
+                f'<p class="mini" style="text-align:center;margin-top:0.35rem">{html.escape(short_tx)}</p>'
+                f'<p style="margin-top:1.25rem;text-align:center"><a href="{url_for("home")}">← back</a></p>'
+                "</div>"
+            )
+            return _zen_shell_open("sub sent-view") + inner + zen_shell_close()
         inner = (
-            '<div class="subwrap">'
-            f'<div class="brand"><h1>Sent</h1><p class="sub">受 · received</p></div>'
-            f'<p class="lead">Check your wallet.</p>'
+            '<div class="subwrap sentwrap">'
+            f'<div class="brand"><h1>sent</h1></div>'
             f'<pre class="prebox">{detail}</pre>'
-            f'<p style="margin-top:1.25rem"><a href="{url_for("home")}">← Back</a></p>'
+            f'<p style="margin-top:1.25rem;text-align:center"><a href="{url_for("home")}">← back</a></p>'
             "</div>"
         )
-        return _zen_shell_open("sub") + inner + ZEN_SHELL_CLOSE
+        return _zen_shell_open("sub sent-view") + inner + zen_shell_close()
 
     inner = (
         '<div class="subwrap">'
-        f'<div class="brand"><h1>Not sent</h1><p class="sub">間 · pause</p></div>'
-        f'<div class="alert err">Could not complete drip (balance, network, or limits).</div>'
+        f'<div class="brand"><h1>not sent</h1><p class="sub">pause</p></div>'
+        f'<div class="alert err">could not complete drip (balance, network, or limits).</div>'
         f'<pre class="prebox tall">{detail}</pre>'
-        f'<p style="margin-top:1.25rem"><a href="{url_for("home")}">← Back</a></p>'
+        f'<p style="margin-top:1.25rem"><a href="{url_for("home")}">← back</a></p>'
         "</div>"
     )
-    return _zen_shell_open("sub") + inner + ZEN_SHELL_CLOSE, 400
+    return _zen_shell_open("sub") + inner + zen_shell_close(), 400
 
 
 if __name__ == "__main__":
