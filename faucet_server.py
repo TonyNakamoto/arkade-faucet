@@ -134,6 +134,26 @@ def _zen_shell_open(body_class: str) -> str:
       justify-content: center;
       padding: clamp(0.4rem, 1.2vh, 0.85rem);
     }}
+    .home-link {{
+      position: fixed;
+      top: 0.8rem;
+      left: 0.8rem;
+      z-index: 7;
+      width: 34px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      background: rgba(255, 255, 255, 0.82);
+      color: var(--ink);
+      text-decoration: none;
+      transition: transform 120ms ease, filter 120ms ease;
+    }}
+    .home-link:hover {{ transform: translateY(-1px); filter: brightness(1.04); }}
+    .home-link:focus-visible {{ outline: 2px solid rgba(0, 0, 0, 0.25); outline-offset: 2px; }}
+    .home-link svg {{ width: 19px; height: 19px; display: block; }}
     body.home .page {{
       height: 100vh;
       max-height: 100vh;
@@ -566,6 +586,11 @@ def _zen_shell_open(body_class: str) -> str:
 </head>
 <body class="{body_class}">
 <div class="bg" aria-hidden="true"></div>
+<a class="home-link" href="https://zenark.onrender.com/" aria-label="home">
+<svg viewBox="0 0 24 24" aria-hidden="true">
+<path fill="currentColor" d="M4 9.2h16c.5 0 .9.4.9.9s-.4.9-.9.9h-1.7v1.7h1.2c.5 0 .9.4.9.9s-.4.9-.9.9H4.5c-.5 0-.9-.4-.9-.9s.4-.9.9-.9h1.2V11H4c-.5 0-.9-.4-.9-.9s.4-.9.9-.9Zm2.7 1.8v1.7h10.6V11H6.7Zm-1.2 5.1h13c.5 0 .9.4.9.9s-.4.9-.9.9h-13c-.5 0-.9-.4-.9-.9s.4-.9.9-.9Zm1.8-9.6 2.3-2.4c1.3-1.3 3.4-1.3 4.7 0l2.4 2.4H7.3Zm3.5-1.1-.6.6h3.7l-.6-.6c-.6-.6-1.7-.6-2.3 0Z"/>
+</svg>
+</a>
 <div class="page">
 <div class="glass">
 """
