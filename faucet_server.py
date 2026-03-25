@@ -761,11 +761,14 @@ def home():
     invalid = request.args.get("invalid")
     addr_limit = request.args.get("addr_limit")
     alert = ""
+    submit_label = "drip"
+    submit_attrs = ""
     if addr_limit:
         alert = (
-            f'<div class="alert err">address limit reached. max {_ADDR_LIMIT_MAX} transfers per '
-            f"{int(_ADDR_LIMIT_WINDOW_HOURS) if _ADDR_LIMIT_WINDOW_HOURS.is_integer() else _ADDR_LIMIT_WINDOW_HOURS:g}h</div>"
+            '<div class="alert err">five drops have fallen. even the earth needs time to drink.</div>'
         )
+        submit_label = "wait for sunrise"
+        submit_attrs = ' disabled aria-disabled="true"'
     elif invalid:
         alert = (
             '<div class="alert err" style="text-align:center">patience. but first, precision</div>'
@@ -796,7 +799,7 @@ def home():
         + '<p class="lead">paste your <code>ark1…</code> address</p>'
         + '<form method="post" action="/claim">'
         + '<textarea name="address" placeholder="ark1…" required autocomplete="off" rows="1"></textarea>'
-        + '<button type="submit">drip</button>'
+        + f'<button type="submit"{submit_attrs}>{submit_label}</button>'
         + "</form>"
         + "</div>"
         + "</div>"
