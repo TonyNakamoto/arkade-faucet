@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#fbfaf7"/>
+  <!-- Enso (zen circle) -->
+  <path
+    d="M 46 18
+       C 56 28, 55 47, 41 52
+       C 26 57, 13 46, 14 31
+       C 15 16, 34 11, 46 18"
+    fill="none"
+    stroke="#0d0d0d"
+    stroke-width="5.2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    opacity="0.92"
+  />
+  <!-- subtle brush taper -->
+  <path
+    d="M 46 18
+       C 49 21, 50.5 23.2, 52 26"
+    fill="none"
+    stroke="#0d0d0d"
+    stroke-width="3.2"
+    stroke-linecap="round"
+    opacity="0.55"
+  />
+</svg>
