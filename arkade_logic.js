@@ -9,7 +9,6 @@
  * Optional:
  *   ARK_SERVER_URL   — default https://arkade.computer
  *   INDEXER_URL
- *   DRIP_AMOUNT      — default 1
  *   ARK_DEBUG        — "1" for stderr diagnostics
  *
  * CLI: node arkade_logic.js [recipient_ark1...]
@@ -28,7 +27,7 @@ import { loadMnemonicPhrase } from "./mnemonic_env.mjs";
 
 const ARK_SERVER_URL = process.env.ARK_SERVER_URL ?? "https://arkade.computer";
 const INDEXER_URL = process.env.INDEXER_URL;
-const DRIP_AMOUNT = Math.max(1, Number.parseInt(process.env.DRIP_AMOUNT ?? "1", 10));
+const DRIP_AMOUNT = 5;
 const DEBUG = process.env.ARK_DEBUG === "1";
 
 function logDebug(...args) {
