@@ -334,6 +334,12 @@ def request_root_url():
     return request.url_root
 
 
+@app.route("/health")
+def health():
+    """Fast 200 for load balancers (Render, etc.) — do not call Node here."""
+    return "ok", 200, {"Content-Type": "text/plain; charset=utf-8"}
+
+
 @app.route("/")
 def home():
     info = _faucet_info()

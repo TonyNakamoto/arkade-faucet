@@ -20,9 +20,5 @@ ENV PORT=5000
 
 EXPOSE 5000
 
-CMD exec gunicorn \
-  --bind "0.0.0.0:${PORT}" \
-  --workers 1 \
-  --threads 4 \
-  --timeout 120 \
-  faucet_server:app
+# Render sets PORT at runtime — bind explicitly via shell so $PORT is always applied.
+CMD ["sh", "-c", "exec gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 1 --threads 4 --timeout 120 faucet_server:app"]

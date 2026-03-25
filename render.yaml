@@ -6,6 +6,7 @@ services:
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
     envVars:
       - key: ARKADE_MNEMONIC
         sync: false
