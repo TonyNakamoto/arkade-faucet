@@ -1,0 +1,6 @@
+Double-click won't work. Open Terminal, type:
+
+cd ~/arkade-faucet
+./start_faucet.sh
+
+Then open: http://localhost:5000/

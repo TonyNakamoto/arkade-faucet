@@ -1,0 +1,10 @@
+node_modules/
+venv/
+pydeps/
+phrase.txt
+.env
+!env.example
+__pycache__/
+*.pyc
+.DS_Store
+npm-debug.log*

@@ -1,0 +1,23 @@
+{
+  "name": "arkade-faucet",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "generate-phrase": "node generate_new_phrase.js",
+    "install:all": "bash install.sh",
+    "start": "bash start_faucet.sh"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@arkade-os/sdk": "^0.4.10",
+    "@scure/base": "^2.0.0",
+    "@scure/bip32": "^2.0.1",
+    "@scure/bip39": "^2.0.1",
+    "qrcode": "^1.5.4"
+  }
+}

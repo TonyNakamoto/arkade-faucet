@@ -1,0 +1,39 @@
+Arkade faucet — quick setup
+============================
+
+1) Install Node.js + Python 3 (with venv: python3-venv on Debian/Ubuntu), then:
+
+   ./install.sh
+
+   This installs npm packages, creates ./venv with Flask, and creates
+   phrase.txt from the example if missing.
+
+2) Secret phrase (12 words)
+
+   phrase.txt must contain ONE line: your 12 English BIP39 words, spaces only.
+
+   - Replace the example:  nano phrase.txt
+   - Or generate new words:  npm run generate-phrase
+     then paste into phrase.txt
+
+   chmod 600 phrase.txt
+
+   NEVER commit phrase.txt (it is in .gitignore).
+
+3) Optional: copy env.example to .env and edit (public URL, drip amount).
+
+4) Start the web UI:
+
+   ./start_faucet.sh
+
+   Open http://localhost:5000/
+
+5) Claim link pattern:
+
+   http://localhost:5000/claim/YOUR_ark1_ADDRESS
+
+Notes
+-----
+- phrase.example.txt uses a well-known TEST mnemonic. For real funds, use
+  words from npm run generate-phrase only, and keep them private.
+- ARKADE_MNEMONIC_FILE defaults to ./phrase.txt (see env.example).

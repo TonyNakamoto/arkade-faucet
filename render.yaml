@@ -1,0 +1,15 @@
+# Render Blueprint — set secrets in the Render dashboard (never in this file).
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: still-zen-ark
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: ARKADE_MNEMONIC
+        sync: false
+      - key: FAUCET_PUBLIC_URL
+        sync: false
+      - key: DRIP_AMOUNT
+        value: "1"

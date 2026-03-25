@@ -1,0 +1,11 @@
+.git
+.github
+node_modules
+pydeps
+venv
+phrase.txt
+.env
+*.md
+__pycache__
+*.pyc
+.DS_Store
