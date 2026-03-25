@@ -1,7 +1,9 @@
 import html
 import json
 import os
+import sqlite3
 import subprocess
+import time
 from flask import Flask, redirect, request, url_for
 
 _script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -44,6 +46,11 @@ except ImportError:
 
 # Background art (decorative). Falls back to gradient if an image fails to load.
 _BG_IMAGE = "/static/bg-zen-garden.png"
+_ADDR_LIMIT_MAX = int(os.environ.get("FAUCET_ADDR_MAX_24H", "5"))
+_ADDR_LIMIT_WINDOW_HOURS = float(os.environ.get("FAUCET_ADDR_WINDOW_HOURS", "24"))
+_ADDR_LIMIT_WINDOW_SECONDS = int(_ADDR_LIMIT_WINDOW_HOURS * 3600)
+_CLAIM_RETENTION_DAYS = int(os.environ.get("FAUCET_CLAIM_RETENTION_DAYS", "7"))
+_CLAIM_RETENTION_SECONDS = _CLAIM_RETENTION_DAYS * 24 * 3600
 
 
 @app.after_request
@@ -581,6 +588,50 @@ def _node_env():
     return env
 
 
+def _claims_db_path() -> str:
+    return os.path.join(_script_dir, "faucet_claims.db")
+
+
+def _ensure_claims_table() -> None:
+    with sqlite3.connect(_claims_db_path()) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS claims (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                address TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_claims_address_time ON claims(address, created_at)")
+        conn.commit()
+
+
+def _address_claims_in_window(address: str, now_ts: int | None = None) -> int:
+    _ensure_claims_table()
+    now = now_ts or int(time.time())
+    since_ts = now - _ADDR_LIMIT_WINDOW_SECONDS
+    with sqlite3.connect(_claims_db_path()) as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM claims WHERE address = ? AND created_at >= ?",
+            (address, since_ts),
+        ).fetchone()
+    return int(row[0] if row else 0)
+
+
+def _record_successful_claim(address: str, now_ts: int | None = None) -> None:
+    _ensure_claims_table()
+    ts = now_ts or int(time.time())
+    prune_before = ts - _CLAIM_RETENTION_SECONDS
+    with sqlite3.connect(_claims_db_path()) as conn:
+        conn.execute(
+            "INSERT INTO claims(address, created_at) VALUES (?, ?)",
+            (address, ts),
+        )
+        conn.execute("DELETE FROM claims WHERE created_at < ?", (prune_before,))
+        conn.commit()
+
+
 def _parse_success_txid(stdout: str) -> str | None:
     for line in (stdout or "").splitlines():
         s = line.strip()
@@ -708,8 +759,14 @@ def home():
         )
 
     invalid = request.args.get("invalid")
+    addr_limit = request.args.get("addr_limit")
     alert = ""
-    if invalid:
+    if addr_limit:
+        alert = (
+            f'<div class="alert err">address limit reached. max {_ADDR_LIMIT_MAX} transfers per '
+            f"{int(_ADDR_LIMIT_WINDOW_HOURS) if _ADDR_LIMIT_WINDOW_HOURS.is_integer() else _ADDR_LIMIT_WINDOW_HOURS:g}h</div>"
+        )
+    elif invalid:
         alert = (
             '<div class="alert err" style="text-align:center">patience. but first, precision</div>'
         )
@@ -754,6 +811,8 @@ def claim_post():
     address = (request.form.get("address") or "").strip()
     if not address.startswith("ark1"):
         return redirect(url_for("home", invalid=1))
+    if _address_claims_in_window(address) >= _ADDR_LIMIT_MAX:
+        return redirect(url_for("home", addr_limit=1))
     return redirect(url_for("claim", user_address=address))
 
 
@@ -772,6 +831,7 @@ def claim(user_address):
     detail = html.escape(result.stdout + result.stderr)
 
     if ok:
+        _record_successful_claim(user_address)
         txid = _parse_success_txid(result.stdout)
         if txid:
             explorer = _tx_explorer_url(txid)
