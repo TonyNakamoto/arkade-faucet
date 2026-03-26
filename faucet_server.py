@@ -311,15 +311,19 @@ def _zen_shell_open(body_class: str) -> str:
     .addr {{
       font-family: ui-monospace, monospace;
       font-size: calc(0.58rem + var(--fs-bump));
-      word-break: break-all;
+      overflow-wrap: anywhere;
+      white-space: normal;
       color: var(--ink);
       background: rgba(255, 255, 255, 0.9);
       padding: 0.45rem 0.5rem;
+      padding-top: 8px;
       border-radius: 8px;
       border: 1px solid rgba(0, 0, 0, 0.07);
-      line-height: 1.35;
-      max-height: 4.5rem;
-      overflow-y: auto;
+      line-height: 1.5;
+      height: auto;
+      min-height: fit-content;
+      max-height: none;
+      overflow-y: visible;
       flex-shrink: 1;
     }}
     .addr-row {{
@@ -860,7 +864,7 @@ def home():
         + f"<div><span>available sats</span><strong>{available}</strong></div>"
         + f"<div><span>drip sats</span><strong>{drip}</strong></div>"
         + "</div>"
-        + '<p class="hint">scan qr with arkade wallet - send to refill the faucet</p>'
+        + '<p class="hint">scan to refill faucet</p>'
         + qr_img
         + '<div class="addr-row">'
         + f'<div class="addr">{html.escape(addr)}</div>'
