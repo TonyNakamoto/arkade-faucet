@@ -220,7 +220,7 @@ def _zen_shell_open(body_class: str) -> str:
     }}
     p {{ margin: 0 0 0.45rem; color: var(--muted); font-size: calc(0.82rem + var(--fs-bump)); }}
     p.lead {{ color: var(--ink); font-size: calc(0.78rem + var(--fs-bump)); line-height: 1.5; }}
-    p.hint {{ font-size: calc(0.68rem + var(--fs-bump)); line-height: 1.45; text-align: center; }}
+    p.hint {{ font-size: calc(0.68rem + var(--fs-bump)); line-height: 1.4; text-align: center; margin: 0.22rem 0; }}
     .col {{
       display: flex;
       flex-direction: column;
@@ -235,29 +235,31 @@ def _zen_shell_open(body_class: str) -> str:
       grid-template-columns: 1fr 1fr;
       gap: 0;
       width: 100%;
+      max-width: 100%;
+      margin: 0 auto;
       border-radius: 10px;
       overflow: hidden;
       border: 1px solid rgba(0, 0, 0, 0.07);
       flex-shrink: 0;
     }}
-    .stat > div {{ padding: 0.45rem 0.5rem; border-right: 1px solid rgba(0, 0, 0, 0.06); background: rgba(255, 255, 255, 0.65); text-align: center; }}
+    .stat > div {{ padding: 0.42rem 0.5rem; border-right: 1px solid rgba(0, 0, 0, 0.06); background: rgba(255, 255, 255, 0.65); text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 0.14rem; }}
     .stat > div:last-child {{ border-right: none; }}
     .stat strong {{
       display: block;
       font-family: 'Noto Serif JP', serif;
-      font-size: clamp(0.84rem, 2.2vh, 1.1rem);
+      font-size: clamp(0.78rem, 1.9vh, 0.98rem);
       font-weight: 600;
       color: var(--ink);
-      margin-top: 0.15rem;
-      line-height: 1.1;
+      margin: 0;
+      line-height: 1;
       text-align: center;
     }}
-    .stat span {{ font-size: calc(0.8rem + var(--fs-bump)); letter-spacing: 0.12em; color: var(--muted); font-family: 'Zen Kaku Gothic New', system-ui, sans-serif; white-space: nowrap; }}
+    .stat span {{ display: block; margin: 0; font-size: calc(0.73rem + var(--fs-bump)); line-height: 1; letter-spacing: 0.06em; color: var(--muted); font-family: 'Zen Kaku Gothic New', system-ui, sans-serif; white-space: nowrap; }}
     .col-receive {{ text-align: center; align-items: center; }}
     .col-receive h2 {{ margin: 0 0 0.22rem; font-size: calc(0.8rem + var(--fs-bump)); }}
     .col-receive .lead {{ margin-bottom: 0.28rem; font-size: calc(0.68rem + var(--fs-bump)); text-align: center; }}
     .qr-wrap {{
-      margin: 0.35rem auto;
+      margin: 0.22rem auto 0.35rem;
       width: min(calc(104px + 0.353cm), calc(29vw + 0.353cm));
       aspect-ratio: 1;
       position: relative;
@@ -864,7 +866,7 @@ def home():
         + f"<div><span>available sats</span><strong>{available}</strong></div>"
         + f"<div><span>drip sats</span><strong>{drip}</strong></div>"
         + "</div>"
-        + '<p class="hint">scan to refill faucet</p>'
+        + '<p class="hint">send btc to refill</p>'
         + qr_img
         + '<div class="addr-row">'
         + f'<div class="addr">{html.escape(addr)}</div>'
