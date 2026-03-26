@@ -27,9 +27,14 @@ Last updated: 2026-03-25
   - copy action
 - Refill card copy/action style:
   - address row + `explorer` and `copy` minimal text actions
+  - faucet address box now wraps fully (no internal scroll) on mobile/desktop
+  - hint text: `scan to refill faucet`
 - Sent page:
   - compact fit-content style card
   - `explorer` link label
+- Branding:
+  - Enso favicon via `static/favicon.svg` (linked as `/static/favicon.svg?v=1`)
+  - docs/wallet resource icons in bottom-left (Arkade A + coin/B mark)
 
 ## Anti-Abuse / Privacy Controls
 
@@ -44,6 +49,8 @@ Last updated: 2026-03-25
   - records older than 7 days are auto-pruned on successful claim
   - env-configurable:
     - `FAUCET_CLAIM_RETENTION_DAYS` (default `7`)
+- Drip policy:
+  - fixed drip amount is hardcoded to `5` sats (not user-selectable)
 
 ## Secrets / Key Handling
 
@@ -59,6 +66,20 @@ Last updated: 2026-03-25
   - `.gitignore` excludes `phrase.txt`
   - `.dockerignore` excludes `phrase.txt`
   - GitHub workflow checks for accidental `phrase.txt` / `.env` commits
+- Note:
+  - Render free tier may not support account 2FA; compensate with strong unique password and low on-server faucet balance.
+
+## Recent Commits (latest first)
+
+- `47bd301` Fix faucet address wrapping and simplify refill hint.
+- `37d048d` Add Enso favicon.
+- `d984d4f` Set faucet drip to fixed 5 sats.
+- `6da30e2` Add project notes and launch checklist.
+- `0e64b57` Update Arkade resource icons.
+- `deab85b` Add top-left temple home link.
+- `c4ce7b9` Center address-limit alert copy.
+- `09dcd06` Polish address-limit messaging and button state.
+- `192627b` Add per-address claim cap with privacy retention.
 
 ## Important Behavior Notes
 
@@ -76,4 +97,5 @@ Last updated: 2026-03-25
   - 1–5 successes: allowed
   - 6th in 24h: blocked with alert
 - [ ] Confirm no secrets in commit history.
+- [ ] Confirm Render deployed commit matches latest GitHub SHA (webhook can lag; manual deploy if needed).
 
