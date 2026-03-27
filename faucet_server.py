@@ -207,6 +207,10 @@ def _zen_shell_open(body_class: str) -> str:
     @media (max-width: 720px) {{
       body.home {{ height: auto; max-height: none; overflow-y: auto; }}
       body.home .page {{ height: auto; max-height: none; }}
+      .page {{ padding: clamp(0.2rem, 0.6vh, 0.42rem); }}
+      .home-link {{ top: 0.4rem; }}
+      .creator-links {{ bottom: 0.4rem; }}
+      .resource-links {{ bottom: 0.4rem; }}
       .glass {{ max-height: none; overflow: visible; }}
       .grid {{ grid-template-columns: 1fr; }}
     }}
