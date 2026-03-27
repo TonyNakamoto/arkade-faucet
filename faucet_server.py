@@ -205,17 +205,16 @@ def _zen_shell_open(body_class: str) -> str:
       flex: 1;
     }}
     @media (max-width: 720px) {{
-      body.home {{ height: auto; max-height: none; overflow-y: auto; }}
-      body.home .page {{ height: auto; max-height: none; }}
+      body.home {{ height: 100dvh; max-height: 100dvh; overflow: hidden; }}
+      body.home .page {{ height: 100dvh; max-height: 100dvh; }}
       .page {{
-        min-height: auto;
-        align-items: flex-start;
-        padding: 0.14rem 0.42rem 0.14rem;
+        min-height: 100dvh;
+        align-items: center;
+        padding: 0.45rem 0.42rem;
       }}
       .home-link {{ top: 0.2rem; }}
       .creator-links {{ bottom: 0.2rem; }}
       .resource-links {{ bottom: 0.2rem; }}
-      body.home .glass {{ flex: 0 1 auto; }}
       .glass {{ max-height: none; overflow: visible; }}
       .grid {{ grid-template-columns: 1fr; }}
     }}
