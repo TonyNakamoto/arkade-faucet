@@ -634,7 +634,17 @@ def _zen_shell_open(body_class: str) -> str:
       position: relative;
       z-index: 1;
     }}
-    .stone-panel .addr {{ margin: 0; max-height: none; overflow: visible; font-size: calc(0.52rem + var(--fs-bump)); }}
+    .stone-panel .addr {{
+      margin: 0;
+      max-height: none;
+      overflow: visible;
+      width: 100%;
+      font-size: calc(0.52rem + var(--fs-bump));
+      text-align: center;
+      user-select: none;
+      cursor: pointer;
+      appearance: none;
+    }}
     .stone-panel .btn-copy {{
       appearance: none;
       border: 0;
@@ -757,6 +767,7 @@ _DONATION_ARK_ADDRESS = (
 
 def _stone_offering_html() -> str:
     addr = _DONATION_ARK_ADDRESS
+    short_addr = _short_addr(addr, 12)
     addr_title = html.escape(addr, quote=True)
     addr_copy = html.escape(addr, quote=True)
     qr_url = html.escape(
@@ -778,8 +789,7 @@ def _stone_offering_html() -> str:
         '<div class="stone-panel" id="stone-panel" role="region" aria-label="tip address" aria-hidden="true">'
         '<p class="stone-tip">maintain the garden. tip via ark.</p>'
         f'<div class="stone-qr"><img src="{qr_url}" width="220" height="220" alt="donation address qr code" /></div>'
-        f'<div class="addr" title="{addr_title}">{html.escape(addr)}</div>'
-        f'<button type="button" class="btn-copy" data-copy="{addr_copy}" aria-label="copy tip address">copy</button>'
+        f'<button type="button" class="addr" data-copy="{addr_copy}" title="{addr_title}" aria-label="copy full tip address">{html.escape(short_addr)}</button>'
         "</div></div>"
     )
 
