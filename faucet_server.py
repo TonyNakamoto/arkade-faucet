@@ -335,12 +335,27 @@ def _zen_shell_open(body_class: str) -> str:
     .addr-row .addr {{
       width: 100%;
       margin: 0;
+      padding: 0.62rem 0.55rem;
+      border-radius: 10px;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      background: rgba(255, 255, 255, 0.95);
+      font-family: ui-monospace, monospace;
+      font-size: calc(0.72rem + var(--fs-bump));
+      line-height: normal;
+      font-weight: 400;
+      color: #000;
+      letter-spacing: normal;
+      opacity: 1;
+      text-align: center;
+      min-height: 0;
+      user-select: none;
+      cursor: pointer;
     }}
+    .addr-row .addr:active {{ filter: brightness(0.98); }}
     .addr-actions {{
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+      display: flex;
       align-items: center;
-      justify-items: center;
+      justify-content: center;
       width: 100%;
       margin-top: 0.28rem;
     }}
@@ -804,6 +819,12 @@ def request_root_url():
     return request.url_root
 
 
+def _short_addr(addr: str, keep: int = 12) -> str:
+    if len(addr) <= (keep * 2 + 3):
+        return addr
+    return f"{addr[:keep]}...{addr[-keep:]}"
+
+
 @app.route("/health")
 def health():
     """Fast 200 for load balancers (Render, etc.) — do not call Node here."""
@@ -832,6 +853,7 @@ def home():
     b64 = info.get("qrPngBase64", "")
 
     available = bal.get("available", 0)
+    short_addr = _short_addr(addr, 12)
 
     qr_img = ""
     if b64:
@@ -869,11 +891,10 @@ def home():
         + '<p class="hint">send btc to refill</p>'
         + qr_img
         + '<div class="addr-row">'
-        + f'<div class="addr">{html.escape(addr)}</div>'
+        + f'<button type="button" class="addr" data-copy="{html.escape(addr, quote=True)}" title="tap to copy full address" aria-label="copy full faucet address">{html.escape(short_addr)}</button>'
         + "</div>"
         + '<div class="addr-actions">'
         + f'<a href="{html.escape(explorer)}" target="_blank" rel="noopener">explorer</a>'
-        + f'<button type="button" class="btn-copy-zen" data-copy="{html.escape(addr, quote=True)}" aria-label="copy faucet address">copy</button>'
         + "</div>"
         + "</div>"
         + '<div class="col col-receive">'
