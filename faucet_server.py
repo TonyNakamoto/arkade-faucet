@@ -282,6 +282,16 @@ def _zen_shell_open(body_class: str) -> str:
     p {{ margin: 0 0 0.45rem; color: var(--muted); font-size: calc(0.82rem + var(--fs-bump)); }}
     p.lead {{ color: var(--ink); font-size: calc(0.78rem + var(--fs-bump)); line-height: 1.5; }}
     p.hint {{ font-size: calc(0.68rem + var(--fs-bump)); line-height: 1.4; text-align: center; margin: 0.22rem 0; }}
+    .receive-title {{
+      margin: 0 0 0.22rem;
+      text-align: center;
+      color: var(--ink);
+      font-family: 'Zen Kaku Gothic New', system-ui, sans-serif;
+      font-weight: 700;
+      font-size: calc(0.92rem + var(--fs-bump));
+      letter-spacing: 0.14em;
+      line-height: 1.15;
+    }}
     .col {{
       display: flex;
       flex-direction: column;
@@ -1010,7 +1020,7 @@ def home():
         + "</div>"
         + "</div>"
         + '<div class="col col-receive">'
-        + "<h2>receive</h2>"
+        + '<p class="receive-title">receive</p>'
         + '<p class="lead">paste your <code>ark1…</code> address</p>'
         + '<form method="post" action="/claim">'
         + '<textarea name="address" placeholder="ark1…" required autocomplete="off" rows="1"></textarea>'
