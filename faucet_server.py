@@ -843,9 +843,7 @@ def home():
         body = (
             '<div class="subwrap">'
             '<div class="brand"><h1>arkade faucet</h1></div>'
-            f'<div class="alert err">could not load wallet. check <code>phrase.txt</code> and run '
-            f'<code>unset ARKADE_MNEMONIC</code> then <code>./start_faucet.sh</code></div>'
-            f'<pre class="prebox tall">{html.escape(err)}</pre>'
+            '<div class="alert err">wallet is resting. try again in a moment.</div>'
             "</div>"
         )
         return _zen_shell_open("sub") + body + zen_shell_close(), 500
@@ -937,8 +935,9 @@ def claim(user_address):
         env=_node_env(),
     )
 
+    raw_detail = (result.stdout or "") + (result.stderr or "")
     ok = "SUCCESS" in result.stdout
-    detail = html.escape(result.stdout + result.stderr)
+    detail = html.escape(raw_detail)
 
     if ok:
         _record_successful_claim(user_address)
@@ -960,17 +959,19 @@ def claim(user_address):
         inner = (
             '<div class="subwrap sentwrap">'
             f'<div class="brand"><h1>sent</h1></div>'
-            f'<pre class="prebox">{detail}</pre>'
+            '<p class="mini" style="text-align:center;margin-top:0.6rem">payment complete</p>'
             f'<p style="margin-top:1.25rem;text-align:center"><a href="{url_for("home")}">← back</a></p>'
             "</div>"
         )
         return _zen_shell_open("sub sent-view") + inner + zen_shell_close()
 
+    if "Invalid Ark address" in raw_detail:
+        return redirect(url_for("home", invalid=1))
+
     inner = (
         '<div class="subwrap">'
-        f'<div class="brand"><h1>not sent</h1><p class="sub">pause</p></div>'
-        f'<div class="alert err">could not complete drip (balance, network, or limits).</div>'
-        f'<pre class="prebox tall">{detail}</pre>'
+        f'<div class="brand"><h1>pause</h1></div>'
+        '<div class="alert err">flow interrupted. try again soon.</div>'
         f'<p style="margin-top:1.25rem"><a href="{url_for("home")}">← back</a></p>'
         "</div>"
     )
