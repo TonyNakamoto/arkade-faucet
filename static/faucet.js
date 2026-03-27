@@ -84,6 +84,41 @@ document.querySelectorAll("[data-copy]").forEach((btn) => {
 });
 
 (() => {
+  const storageKey = "zen-theme";
+  const toggle = document.getElementById("theme-toggle");
+  if (!toggle) return;
+
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  const saved = localStorage.getItem(storageKey);
+
+  const applyTheme = (theme) => {
+    const dark = theme === "dark";
+    document.body.classList.toggle("theme-dark", dark);
+    toggle.setAttribute("aria-pressed", dark ? "true" : "false");
+    toggle.setAttribute("aria-label", dark ? "switch to light mode" : "switch to dark mode");
+  };
+
+  if (saved === "dark" || saved === "light") {
+    applyTheme(saved);
+  } else {
+    applyTheme(media.matches ? "dark" : "light");
+  }
+
+  toggle.addEventListener("click", () => {
+    const dark = !document.body.classList.contains("theme-dark");
+    const next = dark ? "dark" : "light";
+    localStorage.setItem(storageKey, next);
+    applyTheme(next);
+  });
+
+  media.addEventListener("change", (e) => {
+    const pinned = localStorage.getItem(storageKey);
+    if (pinned === "dark" || pinned === "light") return;
+    applyTheme(e.matches ? "dark" : "light");
+  });
+})();
+
+(() => {
   const field = document.querySelector('textarea[name="address"]');
   if (!field) return;
 

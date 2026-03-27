@@ -86,7 +86,35 @@ def _zen_shell_open(body_class: str) -> str:
       --glass: rgba(255, 253, 249, 0.78);
       --glass-edge: rgba(255, 255, 255, 0.55);
       --shadow: 0 12px 48px rgba(15, 20, 25, 0.12);
+      --chip-bg: rgba(255, 255, 255, 0.82);
+      --chip-border: rgba(0, 0, 0, 0.12);
+      --field-bg: rgba(255, 255, 255, 0.95);
+      --field-border: rgba(0, 0, 0, 0.1);
+      --panel-bg: rgba(255, 253, 249, 0.82);
+      --panel-edge: rgba(255, 255, 255, 0.55);
+      --bg-base: #e8e4dc;
+      --bg-grad-1: rgba(252, 250, 246, 0.88);
+      --bg-grad-2: rgba(240, 235, 228, 0.82);
+      --bg-grad-3: rgba(248, 244, 238, 0.9);
       --fs-bump: 0.2rem;
+    }}
+    body.theme-dark {{
+      --ink: #f2eee8;
+      --muted: #c6bcae;
+      --glass: rgba(26, 25, 24, 0.78);
+      --glass-edge: rgba(255, 255, 255, 0.14);
+      --shadow: 0 14px 52px rgba(0, 0, 0, 0.45);
+      --chip-bg: rgba(32, 30, 28, 0.88);
+      --chip-border: rgba(255, 255, 255, 0.2);
+      --field-bg: rgba(30, 28, 26, 0.95);
+      --field-border: rgba(255, 255, 255, 0.2);
+      --stat-bg: rgba(30, 28, 26, 0.95);
+      --panel-bg: rgba(30, 28, 26, 0.9);
+      --panel-edge: rgba(255, 255, 255, 0.16);
+      --bg-base: #11110f;
+      --bg-grad-1: rgba(24, 24, 22, 0.88);
+      --bg-grad-2: rgba(19, 18, 17, 0.84);
+      --bg-grad-3: rgba(14, 13, 12, 0.9);
     }}
     * {{ box-sizing: border-box; }}
     html {{ height: 100%; }}
@@ -120,9 +148,9 @@ def _zen_shell_open(body_class: str) -> str:
       position: fixed;
       inset: 0;
       z-index: -1;
-      background-color: #e8e4dc;
+      background-color: var(--bg-base);
       background-image:
-        linear-gradient(165deg, rgba(252, 250, 246, 0.88) 0%, rgba(240, 235, 228, 0.82) 45%, rgba(248, 244, 238, 0.9) 100%),
+        linear-gradient(165deg, var(--bg-grad-1) 0%, var(--bg-grad-2) 45%, var(--bg-grad-3) 100%),
         url("{_BG_IMAGE}");
       background-size: cover;
       background-position: center;
@@ -146,8 +174,8 @@ def _zen_shell_open(body_class: str) -> str:
       align-items: center;
       justify-content: center;
       border-radius: 999px;
-      border: 1px solid rgba(0, 0, 0, 0.12);
-      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid var(--chip-border);
+      background: var(--chip-bg);
       color: var(--ink);
       text-decoration: none;
       transition: transform 120ms ease, filter 120ms ease;
@@ -155,6 +183,30 @@ def _zen_shell_open(body_class: str) -> str:
     .home-link:hover {{ transform: translateY(-1px); filter: brightness(1.04); }}
     .home-link:focus-visible {{ outline: 2px solid rgba(0, 0, 0, 0.25); outline-offset: 2px; }}
     .home-link svg {{ width: 19px; height: 19px; display: block; }}
+    .theme-toggle {{
+      position: fixed;
+      top: 0.8rem;
+      right: 0.8rem;
+      z-index: 7;
+      width: 34px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      border: 1px solid var(--chip-border);
+      background: var(--chip-bg);
+      color: var(--ink);
+      text-decoration: none;
+      transition: transform 120ms ease, filter 120ms ease;
+      cursor: pointer;
+      padding: 0;
+      font-size: 18px;
+      line-height: 1;
+      transform: rotate(-90deg);
+    }}
+    .theme-toggle:hover {{ transform: translateY(-1px) rotate(-90deg); filter: brightness(1.04); }}
+    .theme-toggle:focus-visible {{ outline: 2px solid rgba(0, 0, 0, 0.25); outline-offset: 2px; }}
     body.home .page {{
       height: 100vh;
       max-height: 100vh;
@@ -213,6 +265,7 @@ def _zen_shell_open(body_class: str) -> str:
         padding: 0.45rem 0.42rem;
       }}
       .home-link {{ top: 0.2rem; }}
+      .theme-toggle {{ top: 0.2rem; right: 0.2rem; }}
       .creator-links {{ bottom: 0.2rem; }}
       .resource-links {{ bottom: 0.2rem; }}
       .glass {{ max-height: none; overflow: visible; }}
@@ -255,7 +308,7 @@ def _zen_shell_open(body_class: str) -> str:
     .stat strong {{
       display: block;
       font-family: 'Noto Serif JP', serif;
-      font-size: clamp(0.78rem, 1.9vh, 0.98rem);
+      font-size: clamp(0.72rem, 1.75vh, 0.9rem);
       font-weight: 600;
       color: var(--ink);
       margin: 0;
@@ -324,11 +377,11 @@ def _zen_shell_open(body_class: str) -> str:
       overflow-wrap: anywhere;
       white-space: normal;
       color: var(--ink);
-      background: rgba(255, 255, 255, 0.9);
+      background: var(--field-bg);
       padding: 0.45rem 0.5rem;
       padding-top: 8px;
       border-radius: 8px;
-      border: 1px solid rgba(0, 0, 0, 0.07);
+      border: 1px solid var(--field-border);
       line-height: 1.5;
       height: auto;
       min-height: fit-content;
@@ -345,13 +398,13 @@ def _zen_shell_open(body_class: str) -> str:
       margin: 0;
       padding: 0.62rem 0.55rem;
       border-radius: 10px;
-      border: 1px solid rgba(0, 0, 0, 0.1);
-      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid var(--field-border);
+      background: var(--field-bg);
       font-family: ui-monospace, monospace;
       font-size: calc(0.72rem + var(--fs-bump));
       line-height: normal;
       font-weight: 400;
-      color: #000;
+      color: #5c5954;
       letter-spacing: normal;
       opacity: 1;
       text-align: center;
@@ -393,8 +446,8 @@ def _zen_shell_open(body_class: str) -> str:
       width: 100%;
       padding: 0.62rem 0.55rem;
       border-radius: 10px;
-      border: 1px solid rgba(0, 0, 0, 0.1);
-      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid var(--field-border);
+      background: var(--field-bg);
       font-family: ui-monospace, monospace;
       font-size: calc(0.72rem + var(--fs-bump));
       height: auto;
@@ -414,7 +467,7 @@ def _zen_shell_open(body_class: str) -> str:
       background: linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 100%);
       color: #faf8f5;
       font-family: 'Zen Kaku Gothic New', sans-serif;
-      font-size: calc(0.78rem + var(--fs-bump));
+      font-size: calc(0.72rem + var(--fs-bump));
       letter-spacing: 0.18em;
       cursor: pointer;
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
@@ -469,8 +522,8 @@ def _zen_shell_open(body_class: str) -> str:
       align-items: center;
       justify-content: center;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.82);
-      border: 1px solid rgba(0, 0, 0, 0.12);
+      background: var(--chip-bg);
+      border: 1px solid var(--chip-border);
       color: var(--ink);
       text-decoration: none;
       transition: transform 120ms ease, filter 120ms ease;
@@ -495,8 +548,8 @@ def _zen_shell_open(body_class: str) -> str:
       align-items: center;
       justify-content: center;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.82);
-      border: 1px solid rgba(0, 0, 0, 0.12);
+      background: var(--chip-bg);
+      border: 1px solid var(--chip-border);
       color: var(--ink);
       text-decoration: none;
       transition: transform 120ms ease, filter 120ms ease;
@@ -513,6 +566,9 @@ def _zen_shell_open(body_class: str) -> str:
     }}
     .resource-links a img.arkade-a {{
       transform: translateX(-1px);
+    }}
+    body.theme-dark .icon-invert-dark {{
+      filter: invert(1);
     }}
     .stone-offering {{
       position: relative;
@@ -532,7 +588,7 @@ def _zen_shell_open(body_class: str) -> str:
       margin: 0;
       padding: 0;
       border: 1px solid rgba(0, 0, 0, 0.12);
-      background: rgba(255, 255, 255, 0.82);
+      background: var(--chip-bg);
       border-radius: 999px;
       cursor: pointer;
       color: var(--ink);
@@ -558,8 +614,8 @@ def _zen_shell_open(body_class: str) -> str:
       overflow: visible;
       padding: 0.45rem 0.55rem;
       border-radius: 14px;
-      background: rgba(255, 253, 249, 0.82);
-      border: 1px solid rgba(255, 255, 255, 0.55);
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-edge);
       box-shadow: 0 10px 36px rgba(15, 20, 25, 0.14);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
@@ -658,6 +714,10 @@ def _zen_shell_open(body_class: str) -> str:
       text-decoration: none;
       cursor: pointer;
     }}
+    body.theme-dark .stat > div {{
+      background: var(--stat-bg);
+      border-right-color: var(--field-border);
+    }}
   </style>
 </head>
 <body class="{body_class}">
@@ -667,9 +727,10 @@ def _zen_shell_open(body_class: str) -> str:
 <path fill="currentColor" d="M4 9.2h16c.5 0 .9.4.9.9s-.4.9-.9.9h-1.7v1.7h1.2c.5 0 .9.4.9.9s-.4.9-.9.9H4.5c-.5 0-.9-.4-.9-.9s.4-.9.9-.9h1.2V11H4c-.5 0-.9-.4-.9-.9s.4-.9.9-.9Zm2.7 1.8v1.7h10.6V11H6.7Zm-1.2 5.1h13c.5 0 .9.4.9.9s-.4.9-.9.9h-13c-.5 0-.9-.4-.9-.9s.4-.9.9-.9Zm1.8-9.6 2.3-2.4c1.3-1.3 3.4-1.3 4.7 0l2.4 2.4H7.3Zm3.5-1.1-.6.6h3.7l-.6-.6c-.6-.6-1.7-.6-2.3 0Z"/>
 </svg>
 </a>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-label="toggle dark mode" aria-pressed="false">☯</button>
 <div class="resource-links" aria-label="arkade resources">
 <a href="https://docs.arkadeos.com/" target="_blank" rel="noopener noreferrer" aria-label="arkade docs">
-<img class="arkade-a" src="/static/arkade-a-bw.png" width="18" height="18" alt="" />
+<img class="arkade-a icon-invert-dark" src="/static/arkade-a-bw-clear.png" width="18" height="18" alt="" />
 </a>
 <a href="https://arkade.money/" target="_blank" rel="noopener noreferrer" aria-label="arkade wallet">
 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -802,7 +863,7 @@ def _zen_shell_footer_html() -> str:
         '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.9 2H22l-6.8 7.8L23.2 22h-6.4l-5-6.5L6.1 22H3l7.3-8.4L.8 2h6.5l4.5 5.9L18.9 2zm-1.1 18h1.8L5.2 3.9H3.3L17.8 20z"/></svg>'
         "</a>"
         '<a href="https://njump.me/npub100763pglp04l4tt8t0scnau9xt5427f8phvcylt2dhmx67nksx2s49szvh" target="_blank" rel="noopener noreferrer" aria-label="nostr">'
-        '<img src="/static/nostr-ostrich.png" width="18" height="18" alt="" />'
+        '<img class="icon-invert-dark" src="/static/nostr-ostrich-clear.png" width="18" height="18" alt="" />'
         "</a>"
         + _stone_offering_html()
         + "</div></body></html>"
