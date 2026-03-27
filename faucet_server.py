@@ -441,13 +441,48 @@ def _zen_shell_open(body_class: str) -> str:
       text-align: center;
       flex-shrink: 0;
     }}
-    .explorer {{ font-size: calc(0.68rem + var(--fs-bump)); margin-top: 0.25rem; }}
+    .explorer-link {{
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 1.7rem;
+      padding: 0 0.5rem;
+      border-radius: 999px;
+      border: 1px solid var(--field-border);
+      background: var(--field-bg);
+      color: var(--ink);
+      font-size: calc(0.68rem + var(--fs-bump));
+      font-weight: 400;
+      letter-spacing: 0;
+      text-decoration: none;
+      overflow: visible;
+      transition: background 120ms ease, border-color 120ms ease;
+    }}
+    .explorer-label {{
+      display: inline-block;
+      line-height: 1;
+      transform: translateY(-5%);
+    }}
+    .explorer-link,
+    .explorer-link:hover,
+    .explorer-link:focus,
+    .explorer-link:visited {{ text-decoration: none; }}
+    .explorer-link:hover {{ filter: brightness(0.98); }}
+    .explorer-link:active {{ filter: brightness(0.95); }}
+    .back-link,
+    .back-link:hover,
+    .back-link:focus,
+    .back-link:visited {{
+      color: var(--ink);
+      text-decoration: none;
+    }}
     textarea {{
       width: 100%;
       padding: 0.62rem 0.55rem;
       border-radius: 10px;
       border: 1px solid var(--field-border);
       background: var(--field-bg);
+      color: var(--ink);
       font-family: ui-monospace, monospace;
       font-size: calc(0.72rem + var(--fs-bump));
       height: auto;
@@ -971,7 +1006,7 @@ def home():
         + f'<button type="button" class="addr" data-copy="{html.escape(addr, quote=True)}" title="tap to copy full address" aria-label="copy full faucet address">{html.escape(short_addr)}</button>'
         + "</div>"
         + '<div class="addr-actions">'
-        + f'<a href="{html.escape(explorer)}" target="_blank" rel="noopener">explorer</a>'
+        + f'<a class="explorer-link" href="{html.escape(explorer)}" target="_blank" rel="noopener"><span class="explorer-label">explorer</span></a>'
         + "</div>"
         + "</div>"
         + '<div class="col col-receive">'
@@ -1023,11 +1058,12 @@ def claim(user_address):
             inner = (
                 '<div class="subwrap sentwrap">'
                 '<div class="brand"><h1>sent</h1></div>'
-                f'<p class="explorer" style="text-align:center;margin-top:0.5rem">'
-                f'<a href="{html.escape(explorer)}" target="_blank" rel="noopener noreferrer">'
-                "explorer</a></p>"
+                '<div class="addr-actions" style="margin-top:0.5rem">'
+                f'<a class="explorer-link" href="{html.escape(explorer)}" target="_blank" rel="noopener noreferrer">'
+                '<span class="explorer-label">explorer</span></a>'
+                "</div>"
                 f'<p class="mini" style="text-align:center;margin-top:0.35rem">{html.escape(short_tx)}</p>'
-                f'<p style="margin-top:1.25rem;text-align:center"><a href="{url_for("home")}">← back</a></p>'
+                f'<p style="margin-top:1.25rem;text-align:center"><a class="back-link" href="{url_for("home")}">back</a></p>'
                 "</div>"
             )
             return _zen_shell_open("sub sent-view") + inner + zen_shell_close()
@@ -1035,7 +1071,7 @@ def claim(user_address):
             '<div class="subwrap sentwrap">'
             f'<div class="brand"><h1>sent</h1></div>'
             '<p class="mini" style="text-align:center;margin-top:0.6rem">payment complete</p>'
-            f'<p style="margin-top:1.25rem;text-align:center"><a href="{url_for("home")}">← back</a></p>'
+            f'<p style="margin-top:1.25rem;text-align:center"><a class="back-link" href="{url_for("home")}">back</a></p>'
             "</div>"
         )
         return _zen_shell_open("sub sent-view") + inner + zen_shell_close()
