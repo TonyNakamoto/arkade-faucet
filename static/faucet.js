@@ -258,6 +258,19 @@ document.querySelectorAll("[data-copy]").forEach((btn) => {
     { passive: true }
   );
 
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (!tracking) return;
+      if (window.scrollY > 2) {
+        tracking = false;
+        maxPull = 0;
+        setIndicator(0);
+      }
+    },
+    { passive: true }
+  );
+
   function endPull() {
     if (!tracking) return;
     tracking = false;

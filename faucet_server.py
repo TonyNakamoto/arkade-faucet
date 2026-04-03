@@ -131,9 +131,11 @@ def _zen_shell_open(body_class: str) -> str:
       text-transform: none;
     }}
     body.home {{
-      height: 100vh;
-      max-height: 100vh;
-      overflow: hidden;
+      min-height: 100vh;
+      min-height: 100dvh;
+      overflow-x: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }}
     body.sub {{
       min-height: 100vh;
@@ -208,8 +210,10 @@ def _zen_shell_open(body_class: str) -> str:
     .theme-toggle:hover {{ transform: translateY(-1px) rotate(-90deg); filter: brightness(1.04); }}
     .theme-toggle:focus-visible {{ outline: 2px solid rgba(0, 0, 0, 0.25); outline-offset: 2px; }}
     body.home .page {{
-      height: 100vh;
-      max-height: 100vh;
+      min-height: 100vh;
+      min-height: 100dvh;
+      height: auto;
+      max-height: none;
     }}
     .glass {{
       width: min(calc(19rem * 2 / 3 * 2 + 12cm), calc(100vw - 2rem));
@@ -257,8 +261,6 @@ def _zen_shell_open(body_class: str) -> str:
       flex: 1;
     }}
     @media (max-width: 720px) {{
-      body.home {{ height: 100dvh; max-height: 100dvh; overflow: hidden; }}
-      body.home .page {{ height: 100dvh; max-height: 100dvh; }}
       .page {{
         min-height: 100dvh;
         align-items: center;
@@ -268,6 +270,7 @@ def _zen_shell_open(body_class: str) -> str:
       .theme-toggle {{ top: 0.2rem; right: 0.2rem; }}
       .creator-links {{ bottom: 0.2rem; }}
       .resource-links {{ bottom: 0.2rem; }}
+      body.home .glass {{ flex: 0 1 auto; }}
       .glass {{ max-height: none; overflow: visible; }}
       .grid {{ grid-template-columns: 1fr; }}
     }}
