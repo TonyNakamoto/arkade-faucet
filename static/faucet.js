@@ -294,6 +294,20 @@ document.querySelectorAll("[data-copy]").forEach((btn) => {
   }
 })();
 
+(() => {
+  try {
+    const u = new URL(window.location.href);
+    if (u.searchParams.has("stone_ln")) {
+      u.searchParams.delete("stone_ln");
+      u.searchParams.delete("_cb");
+      const next = u.pathname + (u.search ? u.search : "") + u.hash;
+      window.history.replaceState({}, "", next);
+    }
+  } catch (_) {
+    /* ignore */
+  }
+})();
+
 const LN_MIN_SATS = 333;
 
 function lnClaimLooksFatal(message) {
@@ -575,6 +589,246 @@ function lnClaimJsonSuccess(data) {
       createBtn.disabled = true;
       amountInput.disabled = true;
       void startBalancePollAfterInvoice();
+      void runAutoClaim();
+    } catch (err) {
+      setNote(err.message || "invoice error");
+      setBusy(false);
+    }
+  });
+})();
+
+(() => {
+  const createBtn = document.getElementById("stone-ln-create");
+  const amountInput = document.getElementById("stone-ln-amount-input");
+  const note = document.getElementById("stone-ln-note");
+  const amountRow = document.getElementById("stone-ln-amount-row");
+  const invoiceWrap = document.getElementById("stone-ln-invoice");
+  const stoneSuccess = document.getElementById("stone-ln-success");
+  const qrImg = document.getElementById("stone-ln-qr-img");
+  const invoiceText = document.getElementById("stone-ln-invoice-text");
+  if (!createBtn || !amountInput || !note || !invoiceWrap || !qrImg || !invoiceText) return;
+
+  let pendingSwap = null;
+  let autoClaimRunning = false;
+  /** @type {ReturnType<typeof setInterval> | null} */
+  let balancePollTimer = null;
+  let stoneTipCompleted = false;
+  /** @type {AbortController | null} */
+  let claimAbort = null;
+  let sawHiddenWhileClaiming = false;
+
+  const setBusy = (busy) => {
+    createBtn.disabled = busy;
+    amountInput.disabled = busy;
+  };
+
+  const setNote = (text) => {
+    note.textContent = text;
+  };
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  function redirectStoneLn(state) {
+    if (balancePollTimer != null) {
+      clearInterval(balancePollTimer);
+      balancePollTimer = null;
+    }
+    const u = new URL(window.location.href);
+    u.searchParams.set("stone_ln", state);
+    u.searchParams.set("_cb", String(Date.now()));
+    window.location.replace(u.pathname + u.search + u.hash);
+  }
+
+  function showStoneTipSuccessThenReload() {
+    if (stoneTipCompleted) return;
+    stoneTipCompleted = true;
+    if (balancePollTimer != null) {
+      clearInterval(balancePollTimer);
+      balancePollTimer = null;
+    }
+    pendingSwap = null;
+    autoClaimRunning = false;
+    invoiceWrap.hidden = true;
+    invoiceWrap.setAttribute("aria-hidden", "true");
+    qrImg.removeAttribute("src");
+    invoiceText.textContent = "";
+    invoiceText.setAttribute("data-copy", "");
+    if (amountRow) amountRow.hidden = true;
+    note.hidden = true;
+    if (stoneSuccess) stoneSuccess.hidden = false;
+    createBtn.disabled = true;
+    amountInput.disabled = true;
+    setBusy(false);
+    const ms = 4500;
+    window.setTimeout(() => {
+      window.location.reload();
+    }, ms);
+  }
+
+  async function startDonationBalancePollAfterInvoice() {
+    try {
+      const r = await fetch("/api/faucet/balance", { cache: "no-store" });
+      const j = await r.json();
+      if (j.error || typeof j.available !== "number") return;
+      const baseline = j.available;
+      if (balancePollTimer != null) clearInterval(balancePollTimer);
+      balancePollTimer = setInterval(async () => {
+        if (!pendingSwap || stoneTipCompleted) return;
+        try {
+          const r2 = await fetch("/api/faucet/balance", { cache: "no-store" });
+          const j2 = await r2.json();
+          if (j2.error || typeof j2.available !== "number") return;
+          if (j2.available > baseline) {
+            showStoneTipSuccessThenReload();
+          }
+        } catch (_) {
+          /* ignore */
+        }
+      }, 5000);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  const CLAIM_FETCH_MS = 210000;
+
+  document.addEventListener("visibilitychange", () => {
+    if (!autoClaimRunning) return;
+    if (document.visibilityState === "hidden") {
+      sawHiddenWhileClaiming = true;
+      return;
+    }
+    if (document.visibilityState === "visible" && sawHiddenWhileClaiming && claimAbort) {
+      sawHiddenWhileClaiming = false;
+      claimAbort.abort();
+    }
+  });
+
+  async function runAutoClaim() {
+    if (autoClaimRunning || !pendingSwap) return;
+    autoClaimRunning = true;
+    let failures = 0;
+    const maxFailures = 90;
+    setNote("pay the invoice. settling automatically…");
+    while (pendingSwap) {
+      setNote("waiting for lightning & ark settlement…");
+      const ac = new AbortController();
+      claimAbort = ac;
+      const killTimer = setTimeout(() => ac.abort(), CLAIM_FETCH_MS);
+      try {
+        const res = await fetch("/api/donation/lightning/claim", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pendingSwap }),
+          signal: ac.signal,
+        });
+        const raw = await res.text();
+        let data = {};
+        try {
+          data = raw ? JSON.parse(raw) : {};
+        } catch (_) {
+          data = {};
+        }
+        if (lnClaimJsonSuccess(data)) {
+          showStoneTipSuccessThenReload();
+          return;
+        }
+        if (res.status === 429) {
+          setNote("too many requests — waiting to retry…");
+          await sleep(15000);
+          continue;
+        }
+        if (res.status >= 500) {
+          failures += 1;
+          if (failures >= maxFailures) {
+            redirectStoneLn("obstructed");
+            return;
+          }
+          setNote("connection hiccup — retrying settlement…");
+          await sleep(4000);
+          continue;
+        }
+        const errStr = data.error || "not ready yet — will retry";
+        if (res.status === 400 && lnClaimErrorMeansAlreadyDone(errStr)) {
+          showStoneTipSuccessThenReload();
+          return;
+        }
+        if (res.status === 400 && lnClaimLooksFatal(errStr)) {
+          redirectStoneLn("obstructed");
+          return;
+        }
+        failures += 1;
+        if (failures >= maxFailures) {
+          redirectStoneLn("obstructed");
+          return;
+        }
+        setNote(errStr.length > 100 ? errStr.slice(0, 100) + "…" : errStr);
+      } catch (e) {
+        if (e.name === "AbortError") {
+          setNote("still settling — retrying…");
+          await sleep(800);
+          continue;
+        }
+        failures += 1;
+        if (failures >= maxFailures) {
+          redirectStoneLn("obstructed");
+          return;
+        }
+        const msg =
+          e.name === "TimeoutError"
+            ? "still settling… will retry"
+            : e.message || "retrying…";
+        setNote(msg);
+      } finally {
+        clearTimeout(killTimer);
+        claimAbort = null;
+      }
+      await sleep(7000);
+    }
+    autoClaimRunning = false;
+    setBusy(false);
+  }
+
+  createBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (autoClaimRunning) return;
+    const raw = amountInput.value.trim();
+    const amount = Math.round(Number(raw));
+    if (!Number.isFinite(amount) || !Number.isInteger(amount) || amount < LN_MIN_SATS) {
+      setNote(`enter at least ${LN_MIN_SATS} sats`);
+      return;
+    }
+    setBusy(true);
+    setNote("creating lightning invoice...");
+    try {
+      const res = await fetch("/api/donation/lightning/invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount }),
+      });
+      const text = await res.text();
+      let data;
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        setNote(
+          `server returned ${res.status} (not JSON). Reload this page from the same host/port as the faucet, or check the server log.`,
+        );
+        setBusy(false);
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(data.error || "could not create invoice");
+      }
+      pendingSwap = data.pendingSwap;
+      stoneTipCompleted = false;
+      invoiceText.textContent = data.invoice;
+      invoiceText.setAttribute("data-copy", data.invoice);
+      qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(data.invoice)}`;
+      invoiceWrap.hidden = false;
+      createBtn.disabled = true;
+      amountInput.disabled = true;
+      void startDonationBalancePollAfterInvoice();
       void runAutoClaim();
     } catch (err) {
       setNote(err.message || "invoice error");

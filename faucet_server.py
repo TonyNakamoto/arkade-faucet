@@ -472,6 +472,19 @@ def _zen_shell_open(body_class: str) -> str:
       margin: 0 0 0.42rem;
       transform: translateY(-0.06rem);
     }}
+    .stone-panel .stone-ln.ln-topup {{
+      margin-top: 0.55rem;
+      padding-top: 0.42rem;
+    }}
+    .stone-panel .stone-ln.ln-topup > .receive-title {{
+      margin: 0 0 0.4rem;
+      transform: none;
+      font-weight: 400;
+      font-size: calc(0.72rem + var(--fs-bump));
+      line-height: 1.45;
+      color: var(--muted);
+      letter-spacing: normal;
+    }}
     .ln-amount-row {{
       display: flex;
       flex-wrap: wrap;
@@ -968,6 +981,26 @@ def _stone_offering_html() -> str:
         '<p class="stone-tip">maintain the garden. tip via ark.</p>'
         f'<div class="stone-qr"><img src="{qr_url}" width="220" height="220" alt="donation address qr code" /></div>'
         f'<button type="button" class="addr" data-copy="{addr_copy}" title="{addr_title}" aria-label="copy full tip address">{html.escape(short_addr)}</button>'
+        '<div class="ln-topup stone-ln" id="stone-ln-topup">'
+        '<p class="receive-title">donate via lightning</p>'
+        '<div class="ln-amount-row" id="stone-ln-amount-row">'
+        '<input type="text" class="ln-sats-input" id="stone-ln-amount-input" name="stone_ln_sats" '
+        'inputmode="numeric" autocomplete="off" autocorrect="off" spellcheck="false" '
+        'placeholder="min 333 sats" aria-label="donation amount in satoshis, minimum 333" />'
+        '<button type="button" class="ln-create" id="stone-ln-create">create invoice</button>'
+        "</div>"
+        '<p class="ln-note" id="stone-ln-note">enter amount, then create invoice</p>'
+        '<div class="ln-invoice" id="stone-ln-invoice" hidden>'
+        '<div class="stone-qr ln-qr"><img id="stone-ln-qr-img" alt="lightning invoice qr code" /></div>'
+        '<div class="addr-row">'
+        '<button type="button" class="addr" id="stone-ln-invoice-text" data-copy="" title="tap to copy invoice" '
+        'aria-label="copy lightning invoice"></button>'
+        "</div>"
+        "</div>"
+        '<div class="ln-success" id="stone-ln-success" hidden>'
+        '<div class="alert ok" style="text-align:center">appreciation</div>'
+        "</div>"
+        "</div>"
         "</div></div>"
     )
 
@@ -1021,6 +1054,7 @@ def _node_json(args: list[str], timeout_sec: float = 20.0):
         return {"error": f"timed out after {int(timeout_sec)}s — check network or try again"}
     out = (proc.stdout or "").strip()
     _topup_dbg = os.environ.get("TOPUP_LIGHTNING_DEBUG") == "1" and args and args[0] == "topup_lightning.js"
+    _don_dbg = os.environ.get("DONATION_LIGHTNING_DEBUG") == "1" and args and args[0] == "donation_lightning.js"
     if _topup_dbg:
         print(
             f"[topup_lightning] argv={args[1:3]!s} exit={proc.returncode} stdout_len={len(out)}",
@@ -1029,6 +1063,14 @@ def _node_json(args: list[str], timeout_sec: float = 20.0):
         err = (proc.stderr or "").strip()
         if err:
             print(f"[topup_lightning stderr]\n{err[:8000]}\n", flush=True)
+    if _don_dbg:
+        print(
+            f"[donation_lightning] argv={args[1:3]!s} exit={proc.returncode} stdout_len={len(out)}",
+            flush=True,
+        )
+        err_d = (proc.stderr or "").strip()
+        if err_d:
+            print(f"[donation_lightning stderr]\n{err_d[:8000]}\n", flush=True)
     if not out:
         return {"error": (proc.stderr or "no output").strip()[:500]}
     try:
@@ -1037,6 +1079,8 @@ def _node_json(args: list[str], timeout_sec: float = 20.0):
         return {"error": out[:500]}
     if _topup_dbg and isinstance(data, dict) and data.get("error"):
         print(f"[topup_lightning json error] {data.get('error')}", flush=True)
+    if _don_dbg and isinstance(data, dict) and data.get("error"):
+        print(f"[donation_lightning json error] {data.get('error')}", flush=True)
     return data
 
 
@@ -1091,6 +1135,7 @@ def home():
     invalid = request.args.get("invalid")
     addr_limit = request.args.get("addr_limit")
     ln_topup = request.args.get("ln_topup")
+    stone_ln = request.args.get("stone_ln")
     alert = ""
     submit_label = "drip"
     submit_attrs = ""
@@ -1109,11 +1154,16 @@ def home():
     if ln_topup == "obstructed":
         ln_alert = '<div class="alert err" style="text-align:center">flow obstructed</div>'
 
+    stone_ln_alert = ""
+    if stone_ln == "obstructed":
+        stone_ln_alert = '<div class="alert err" style="text-align:center">tip flow obstructed</div>'
+
     page = (
         _zen_shell_open("home")
         + '<div class="brand"><h1>arkade faucet</h1></div>'
         + alert
         + ln_alert
+        + stone_ln_alert
         + '<div class="grid">'
         + '<div class="col">'
         + '<div class="stat">'
@@ -1278,6 +1328,47 @@ def lightning_claim():
     except (TypeError, ValueError):
         return jsonify({"error": "invalid pending swap"}), 400
     data = _node_json(["topup_lightning.js", "claim", pending_json], timeout_sec=180.0)
+    if data.get("error"):
+        return jsonify(data), 400
+    return jsonify(data)
+
+
+@app.route("/api/donation/lightning/limits")
+def donation_lightning_limits():
+    data = _node_json(["donation_lightning.js", "limits"])
+    if data.get("error"):
+        return jsonify(data), 502
+    return jsonify(data)
+
+
+@app.route("/api/donation/lightning/invoice", methods=["POST"])
+@_limiter.limit("20 per hour")
+def donation_lightning_invoice():
+    payload = request.get_json(silent=True) or {}
+    amount = payload.get("amount")
+    if isinstance(amount, bool):
+        return jsonify({"error": "invalid amount"}), 400
+    if isinstance(amount, float) and amount.is_integer():
+        amount = int(amount)
+    if not isinstance(amount, int) or amount <= 0:
+        return jsonify({"error": "invalid amount"}), 400
+    data = _node_json(["donation_lightning.js", "create", str(amount)], timeout_sec=90.0)
+    if data.get("error"):
+        return jsonify(data), 400
+    return jsonify(data)
+
+
+@app.route("/api/donation/lightning/claim", methods=["POST"])
+def donation_lightning_claim():
+    payload = request.get_json(silent=True) or {}
+    pending_swap = payload.get("pendingSwap")
+    if pending_swap is None:
+        return jsonify({"error": "missing pending swap"}), 400
+    try:
+        pending_json = json.dumps(pending_swap, separators=(",", ":"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "invalid pending swap"}), 400
+    data = _node_json(["donation_lightning.js", "claim", pending_json], timeout_sec=180.0)
     if data.get("error"):
         return jsonify(data), 400
     return jsonify(data)

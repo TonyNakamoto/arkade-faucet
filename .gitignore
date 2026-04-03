@@ -2,6 +2,7 @@ node_modules/
 venv/
 pydeps/
 phrase.txt
+faucet_claims.db
 .env
 !env.example
 __pycache__/
