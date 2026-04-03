@@ -449,13 +449,6 @@ def _zen_shell_open(body_class: str) -> str:
       padding-top: 0.45rem;
       border-top: 1px solid var(--field-border);
     }}
-    .ln-title {{
-      margin: 0 0 0.24rem;
-      text-align: center;
-      color: var(--muted);
-      font-size: calc(0.66rem + var(--fs-bump));
-      letter-spacing: 0.08em;
-    }}
     .ln-amount-row {{
       display: flex;
       flex-wrap: wrap;
@@ -1113,7 +1106,7 @@ def home():
         + f'<a class="explorer-link" href="{html.escape(explorer)}" target="_blank" rel="noopener"><span class="explorer-label">explorer</span></a>'
         + "</div>"
         + '<div class="ln-topup" id="ln-topup">'
-        + '<p class="ln-title">top up via lightning</p>'
+        + '<p class="receive-title">top up via lightning</p>'
         + '<div class="ln-amount-row" id="ln-amount-row">'
         + '<input type="text" class="ln-sats-input" id="ln-amount-input" name="ln_sats" '
         + 'inputmode="numeric" autocomplete="off" autocorrect="off" spellcheck="false" '
