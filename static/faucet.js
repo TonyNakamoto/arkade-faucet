@@ -166,7 +166,23 @@ document.querySelectorAll("[data-copy]").forEach((btn) => {
   const THRESHOLD_PX = 72;
   const SHOW_AFTER_PX = 10;
 
+  if (!document.getElementById("zen-ptr-style")) {
+    const st = document.createElement("style");
+    st.id = "zen-ptr-style";
+    st.textContent =
+      "@keyframes zen-ptr-spin{to{transform:rotate(360deg)}}" +
+      "#zen-ptr-holder.zen-ptr-active .zen-ptr-glyph{" +
+      "animation:zen-ptr-spin 0.68s linear infinite;" +
+      "will-change:transform;" +
+      "}" +
+      "@media (prefers-reduced-motion:reduce){" +
+      "#zen-ptr-holder.zen-ptr-active .zen-ptr-glyph{animation:none}" +
+      "}";
+    document.head.appendChild(st);
+  }
+
   const holder = document.createElement("div");
+  holder.id = "zen-ptr-holder";
   holder.setAttribute("aria-hidden", "true");
   holder.style.cssText = [
     "position:fixed",
@@ -180,10 +196,12 @@ document.querySelectorAll("[data-copy]").forEach((btn) => {
     "color:inherit",
   ].join(";");
   holder.innerHTML =
-    '<svg width="28" height="28" viewBox="0 0 40 40" style="display:block;overflow:visible" xmlns="http://www.w3.org/2000/svg">' +
-    '<path d="M 7 23.5 A 15.2 15.2 0 1 1 23.5 7.2" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" opacity="0.55"/>' +
-    '<path d="M 23.8 7 L 26 5.2 M 23.8 7 L 25.2 9.4" fill="none" stroke="currentColor" stroke-width="1.05" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>' +
-    "</svg>";
+    '<div class="zen-ptr-glyph" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;transform-origin:50% 50%">' +
+    '<svg width="30" height="30" viewBox="0 0 40 40" style="display:block;overflow:visible" xmlns="http://www.w3.org/2000/svg">' +
+    '<g fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" opacity="0.9">' +
+    '<path d="M9.4 23.2A10.6 10.6 0 1 1 28.8 15.8"/>' +
+    '<path d="M26.6 12.4l5.2 4.6-6.4 1.2"/>' +
+    "</g></svg></div>";
   document.body.appendChild(holder);
 
   let startY = 0;
@@ -201,12 +219,14 @@ document.querySelectorAll("[data-copy]").forEach((btn) => {
 
   function setIndicator(pull) {
     if (pull < SHOW_AFTER_PX) {
+      holder.classList.remove("zen-ptr-active");
       holder.style.opacity = "0";
       holder.style.transform = "translateX(-50%) translateY(0)";
       return;
     }
+    holder.classList.add("zen-ptr-active");
     const t = Math.min(1, pull / THRESHOLD_PX);
-    holder.style.opacity = String(0.12 + t * 0.78);
+    holder.style.opacity = String(0.14 + t * 0.8);
     const drift = Math.min(12, pull * 0.14);
     holder.style.transform = `translateX(-50%) translateY(${drift}px)`;
   }
@@ -271,4 +291,82 @@ document.querySelectorAll("[data-copy]").forEach((btn) => {
 
   document.addEventListener("touchend", endPull, { passive: true });
   document.addEventListener("touchcancel", endPull, { passive: true });
+})();
+
+(() => {
+  const amountButtons = Array.from(document.querySelectorAll("[data-ln-amount]"));
+  const note = document.getElementById("ln-note");
+  const invoiceWrap = document.getElementById("ln-invoice");
+  const qrImg = document.getElementById("ln-qr-img");
+  const invoiceText = document.getElementById("ln-invoice-text");
+  const copyBtn = document.getElementById("ln-copy");
+  const claimBtn = document.getElementById("ln-claim");
+  if (!amountButtons.length || !note || !invoiceWrap || !qrImg || !invoiceText || !copyBtn || !claimBtn) return;
+
+  let pendingSwap = null;
+
+  const setBusy = (busy) => {
+    amountButtons.forEach((btn) => (btn.disabled = busy));
+    claimBtn.disabled = busy || !pendingSwap;
+  };
+
+  const setNote = (text) => {
+    note.textContent = text;
+  };
+
+  amountButtons.forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const amount = Number(btn.getAttribute("data-ln-amount"));
+      if (!Number.isInteger(amount) || amount <= 0) return;
+      setBusy(true);
+      setNote("creating lightning invoice...");
+      try {
+        const res = await fetch("/api/topup/lightning/invoice", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "could not create invoice");
+        }
+        pendingSwap = data.pendingSwap;
+        invoiceText.textContent = data.invoice;
+        copyBtn.setAttribute("data-copy", data.invoice);
+        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(data.invoice)}`;
+        invoiceWrap.hidden = false;
+        setNote("scan invoice. then tap confirm paid.");
+      } catch (err) {
+        setNote(err.message || "invoice error");
+      } finally {
+        setBusy(false);
+      }
+    });
+  });
+
+  claimBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (!pendingSwap) return;
+    setBusy(true);
+    setNote("checking payment...");
+    try {
+      const res = await fetch("/api/topup/lightning/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pendingSwap }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "payment not ready yet");
+      }
+      setNote("top up received. refresh to see new balance.");
+      pendingSwap = null;
+      claimBtn.disabled = true;
+    } catch (err) {
+      setNote(err.message || "not paid yet");
+    } finally {
+      setBusy(false);
+    }
+  });
 })();
