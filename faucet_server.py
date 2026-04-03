@@ -446,8 +446,12 @@ def _zen_shell_open(body_class: str) -> str:
     .ln-topup {{
       width: 100%;
       margin-top: 0.5rem;
-      padding-top: 0.45rem;
+      padding-top: 0.22rem;
       border-top: 1px solid var(--field-border);
+    }}
+    .ln-topup > .receive-title {{
+      margin: 0 0 0.42rem;
+      transform: translateY(-0.06rem);
     }}
     .ln-amount-row {{
       display: flex;
