@@ -75,6 +75,22 @@ def _zen_shell_open(body_class: str) -> str:
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark light" />
+  <script>
+(function () {{
+  try {{
+    var k = "zen-theme";
+    var v = localStorage.getItem(k);
+    var dark;
+    if (v === "dark") dark = true;
+    else if (v === "light") dark = false;
+    else dark = true;
+    document.documentElement.classList.toggle("theme-dark", dark);
+  }} catch (e) {{
+    document.documentElement.classList.add("theme-dark");
+  }}
+}})();
+  </script>
   <title>arkade faucet</title>
   <link rel="icon" href="/static/favicon.svg?v=1" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -98,7 +114,7 @@ def _zen_shell_open(body_class: str) -> str:
       --bg-grad-3: rgba(248, 244, 238, 0.9);
       --fs-bump: 0.2rem;
     }}
-    body.theme-dark {{
+    html.theme-dark, body.theme-dark {{
       --ink: #f2eee8;
       --muted: #c6bcae;
       --glass: rgba(26, 25, 24, 0.78);
@@ -668,7 +684,7 @@ def _zen_shell_open(body_class: str) -> str:
     .resource-links a img.arkade-a {{
       transform: translateX(-1px);
     }}
-    body.theme-dark .icon-invert-dark {{
+    html.theme-dark .icon-invert-dark, body.theme-dark .icon-invert-dark {{
       filter: invert(1);
     }}
     .stone-offering {{
@@ -815,7 +831,7 @@ def _zen_shell_open(body_class: str) -> str:
       text-decoration: none;
       cursor: pointer;
     }}
-    body.theme-dark .stat > div {{
+    html.theme-dark .stat > div, body.theme-dark .stat > div {{
       background: var(--stat-bg);
       border-right-color: var(--field-border);
     }}

@@ -88,11 +88,11 @@ document.querySelectorAll("[data-copy]").forEach((btn) => {
   const toggle = document.getElementById("theme-toggle");
   if (!toggle) return;
 
-  const media = window.matchMedia("(prefers-color-scheme: dark)");
   const saved = localStorage.getItem(storageKey);
 
   const applyTheme = (theme) => {
     const dark = theme === "dark";
+    document.documentElement.classList.toggle("theme-dark", dark);
     document.body.classList.toggle("theme-dark", dark);
     toggle.setAttribute("aria-pressed", dark ? "true" : "false");
     toggle.setAttribute("aria-label", dark ? "switch to light mode" : "switch to dark mode");
@@ -101,7 +101,7 @@ document.querySelectorAll("[data-copy]").forEach((btn) => {
   if (saved === "dark" || saved === "light") {
     applyTheme(saved);
   } else {
-    applyTheme(media.matches ? "dark" : "light");
+    applyTheme("dark");
   }
 
   toggle.addEventListener("click", () => {
@@ -109,12 +109,6 @@ document.querySelectorAll("[data-copy]").forEach((btn) => {
     const next = dark ? "dark" : "light";
     localStorage.setItem(storageKey, next);
     applyTheme(next);
-  });
-
-  media.addEventListener("change", (e) => {
-    const pinned = localStorage.getItem(storageKey);
-    if (pinned === "dark" || pinned === "light") return;
-    applyTheme(e.matches ? "dark" : "light");
   });
 })();
 
