@@ -281,7 +281,6 @@ def _zen_shell_open(body_class: str) -> str:
     }}
     p {{ margin: 0 0 0.45rem; color: var(--muted); font-size: calc(0.82rem + var(--fs-bump)); }}
     p.lead {{ color: var(--ink); font-size: calc(0.78rem + var(--fs-bump)); line-height: 1.5; }}
-    p.hint {{ font-size: calc(0.68rem + var(--fs-bump)); line-height: 1.4; text-align: center; margin: 0.22rem 0; }}
     .receive-title {{
       margin: 0 0 0.22rem;
       text-align: center;
@@ -1105,7 +1104,7 @@ def home():
         + f"<div><span>available sats</span><strong>{available}</strong></div>"
         + f"<div><span>drip sats</span><strong>{drip}</strong></div>"
         + "</div>"
-        + '<p class="hint">send btc to refill</p>'
+        + '<p class="receive-title">send btc to refill</p>'
         + qr_img
         + '<div class="addr-row">'
         + f'<button type="button" class="addr" data-copy="{html.escape(addr, quote=True)}" title="tap to copy full address" aria-label="copy full faucet address">{html.escape(short_addr)}</button>'
