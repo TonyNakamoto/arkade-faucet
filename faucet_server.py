@@ -1116,9 +1116,8 @@ def home():
         + '<p class="ln-note" id="ln-note">enter amount, then create invoice</p>'
         + '<div class="ln-invoice" id="ln-invoice" hidden>'
         + '<div class="stone-qr ln-qr"><img id="ln-qr-img" alt="lightning invoice qr code" /></div>'
-        + '<div class="addr" id="ln-invoice-text"></div>'
-        + '<div class="addr-actions">'
-        + '<button type="button" class="btn-copy-zen" id="ln-copy" data-copy="">copy invoice</button>'
+        + '<div class="addr-row">'
+        + '<button type="button" class="addr" id="ln-invoice-text" data-copy="" title="tap to copy invoice" aria-label="copy lightning invoice"></button>'
         + "</div>"
         + "</div>"
         + '<div class="ln-success" id="ln-success" hidden>'

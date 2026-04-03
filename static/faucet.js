@@ -333,8 +333,7 @@ function lnClaimJsonSuccess(data) {
   const lnSuccess = document.getElementById("ln-success");
   const qrImg = document.getElementById("ln-qr-img");
   const invoiceText = document.getElementById("ln-invoice-text");
-  const copyBtn = document.getElementById("ln-copy");
-  if (!createBtn || !amountInput || !note || !invoiceWrap || !qrImg || !invoiceText || !copyBtn) return;
+  if (!createBtn || !amountInput || !note || !invoiceWrap || !qrImg || !invoiceText) return;
 
   let pendingSwap = null;
   let autoClaimRunning = false;
@@ -384,6 +383,7 @@ function lnClaimJsonSuccess(data) {
     invoiceWrap.setAttribute("aria-hidden", "true");
     qrImg.removeAttribute("src");
     invoiceText.textContent = "";
+    invoiceText.setAttribute("data-copy", "");
     if (lnAmountRow) lnAmountRow.hidden = true;
     note.hidden = true;
     if (lnSuccess) lnSuccess.hidden = false;
@@ -562,7 +562,7 @@ function lnClaimJsonSuccess(data) {
       pendingSwap = data.pendingSwap;
       lnTopupCompleted = false;
       invoiceText.textContent = data.invoice;
-      copyBtn.setAttribute("data-copy", data.invoice);
+      invoiceText.setAttribute("data-copy", data.invoice);
       qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(data.invoice)}`;
       invoiceWrap.hidden = false;
       createBtn.disabled = true;
