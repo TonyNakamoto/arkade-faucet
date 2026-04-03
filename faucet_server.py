@@ -4,7 +4,7 @@ import os
 import sqlite3
 import subprocess
 import time
-from flask import Flask, redirect, request, url_for
+from flask import Flask, jsonify, redirect, request, url_for
 
 _script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -444,6 +444,62 @@ def _zen_shell_open(body_class: str) -> str:
     }}
     .btn-copy-zen:hover {{ filter: brightness(0.97); }}
     .addr-actions a {{ text-decoration: none; }}
+    .ln-topup {{
+      width: 100%;
+      margin-top: 0.5rem;
+      padding-top: 0.45rem;
+      border-top: 1px solid var(--field-border);
+    }}
+    .ln-title {{
+      margin: 0 0 0.24rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: calc(0.66rem + var(--fs-bump));
+      letter-spacing: 0.08em;
+    }}
+    .ln-amount-row {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      align-items: stretch;
+      width: 100%;
+    }}
+    .ln-sats-input {{
+      flex: 1 1 6rem;
+      min-width: 0;
+      appearance: none;
+      border: 1px solid var(--field-border);
+      border-radius: 8px;
+      background: var(--field-bg);
+      color: var(--ink);
+      padding: 0.28rem 0.45rem;
+      font: inherit;
+      font-size: calc(0.65rem + var(--fs-bump));
+    }}
+    .ln-sats-input:disabled {{ opacity: 0.6; cursor: default; }}
+    .ln-create {{
+      appearance: none;
+      border: 1px solid var(--field-border);
+      border-radius: 8px;
+      background: var(--chip-bg);
+      color: var(--ink);
+      padding: 0.28rem 0.55rem;
+      font: inherit;
+      font-size: calc(0.62rem + var(--fs-bump));
+      cursor: pointer;
+      white-space: nowrap;
+    }}
+    .ln-create:disabled {{ opacity: 0.6; cursor: default; }}
+    .ln-note {{
+      margin: 0.3rem 0 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: calc(0.58rem + var(--fs-bump));
+      line-height: 1.35;
+    }}
+    .ln-invoice {{ margin-top: 0.3rem; }}
+    .ln-success {{ margin-top: 0.35rem; width: 100%; }}
+    .ln-qr {{ margin-bottom: 0.3rem; }}
     .mini {{
       font-size: calc(0.62rem + var(--fs-bump));
       color: var(--muted);
@@ -521,6 +577,7 @@ def _zen_shell_open(body_class: str) -> str:
     a {{ color: var(--ink); text-underline-offset: 3px; }}
     .alert {{ border-radius: 10px; border: 1px solid rgba(139, 115, 85, 0.45); padding: 0.5rem 0.65rem; margin-bottom: 0.45rem; background: rgba(255, 255, 255, 0.85); color: #4a4035; font-size: calc(0.75rem + var(--fs-bump)); flex-shrink: 0; }}
     .alert.err {{ border-color: rgba(166, 124, 124, 0.55); color: #5c3a3a; }}
+    .alert.ok {{ border-color: rgba(124, 166, 140, 0.55); color: #2f4a38; background: rgba(248, 255, 250, 0.92); }}
     .prebox {{
       font-family: ui-monospace, monospace;
       font-size: calc(0.75rem + var(--fs-bump));
@@ -935,6 +992,38 @@ def _faucet_info():
     except json.JSONDecodeError:
         return {"error": raw[:500]}
 
+def _node_json(args: list[str], timeout_sec: float = 20.0):
+    try:
+        proc = subprocess.run(
+            ["node"] + args,
+            capture_output=True,
+            text=True,
+            cwd=os.path.dirname(os.path.abspath(__file__)) or ".",
+            env=_node_env(),
+            timeout=timeout_sec,
+        )
+    except subprocess.TimeoutExpired:
+        return {"error": f"timed out after {int(timeout_sec)}s — check network or try again"}
+    out = (proc.stdout or "").strip()
+    _topup_dbg = os.environ.get("TOPUP_LIGHTNING_DEBUG") == "1" and args and args[0] == "topup_lightning.js"
+    if _topup_dbg:
+        print(
+            f"[topup_lightning] argv={args[1:3]!s} exit={proc.returncode} stdout_len={len(out)}",
+            flush=True,
+        )
+        err = (proc.stderr or "").strip()
+        if err:
+            print(f"[topup_lightning stderr]\n{err[:8000]}\n", flush=True)
+    if not out:
+        return {"error": (proc.stderr or "no output").strip()[:500]}
+    try:
+        data = json.loads(out)
+    except json.JSONDecodeError:
+        return {"error": out[:500]}
+    if _topup_dbg and isinstance(data, dict) and data.get("error"):
+        print(f"[topup_lightning json error] {data.get('error')}", flush=True)
+    return data
+
 
 def request_root_url():
     u = os.environ.get("FAUCET_PUBLIC_URL", "").rstrip("/")
@@ -986,6 +1075,7 @@ def home():
 
     invalid = request.args.get("invalid")
     addr_limit = request.args.get("addr_limit")
+    ln_topup = request.args.get("ln_topup")
     alert = ""
     submit_label = "drip"
     submit_attrs = ""
@@ -1000,10 +1090,15 @@ def home():
             '<div class="alert err" style="text-align:center">patience. but first, precision</div>'
         )
 
+    ln_alert = ""
+    if ln_topup == "obstructed":
+        ln_alert = '<div class="alert err" style="text-align:center">flow obstructed</div>'
+
     page = (
         _zen_shell_open("home")
         + '<div class="brand"><h1>arkade faucet</h1></div>'
         + alert
+        + ln_alert
         + '<div class="grid">'
         + '<div class="col">'
         + '<div class="stat">'
@@ -1018,6 +1113,26 @@ def home():
         + '<div class="addr-actions">'
         + f'<a class="explorer-link" href="{html.escape(explorer)}" target="_blank" rel="noopener"><span class="explorer-label">explorer</span></a>'
         + "</div>"
+        + '<div class="ln-topup" id="ln-topup">'
+        + '<p class="ln-title">top up via lightning</p>'
+        + '<div class="ln-amount-row" id="ln-amount-row">'
+        + '<input type="text" class="ln-sats-input" id="ln-amount-input" name="ln_sats" '
+        + 'inputmode="numeric" autocomplete="off" autocorrect="off" spellcheck="false" '
+        + 'placeholder="min 333 sats" aria-label="amount in satoshis, minimum 333" />'
+        + '<button type="button" class="ln-create" id="ln-create">create invoice</button>'
+        + "</div>"
+        + '<p class="ln-note" id="ln-note">enter amount, then create invoice</p>'
+        + '<div class="ln-invoice" id="ln-invoice" hidden>'
+        + '<div class="stone-qr ln-qr"><img id="ln-qr-img" alt="lightning invoice qr code" /></div>'
+        + '<div class="addr" id="ln-invoice-text"></div>'
+        + '<div class="addr-actions">'
+        + '<button type="button" class="btn-copy-zen" id="ln-copy" data-copy="">copy invoice</button>'
+        + "</div>"
+        + "</div>"
+        + '<div class="ln-success" id="ln-success" hidden>'
+        + '<div class="alert ok" style="text-align:center">appreciation</div>'
+        + "</div>"
+        + "</div>"
         + "</div>"
         + '<div class="col col-receive">'
         + '<p class="receive-title">receive</p>'
@@ -1030,7 +1145,7 @@ def home():
         + "</div>"
         + zen_shell_close()
     )
-    return page
+    return page, 200, {"Cache-Control": "no-store, max-age=0, must-revalidate"}
 
 
 @app.route("/claim", methods=["POST"])
@@ -1099,5 +1214,61 @@ def claim(user_address):
     return _zen_shell_open("sub") + inner + zen_shell_close(), 400
 
 
+@app.route("/api/faucet/balance")
+def faucet_balance_json():
+    """Lightweight JSON for UI polling when long-running /claim responses are lost in the browser."""
+    info = _faucet_info()
+    if info.get("error"):
+        return jsonify({"error": info["error"]}), 500
+    bal = info.get("balance") or {}
+    try:
+        avail = int(bal.get("available", 0))
+    except (TypeError, ValueError):
+        avail = 0
+    return jsonify({"available": avail})
+
+
+@app.route("/api/topup/lightning/limits")
+def lightning_limits():
+    data = _node_json(["topup_lightning.js", "limits"])
+    if data.get("error"):
+        return jsonify(data), 502
+    return jsonify(data)
+
+
+@app.route("/api/topup/lightning/invoice", methods=["POST"])
+@_limiter.limit("20 per hour")
+def lightning_invoice():
+    payload = request.get_json(silent=True) or {}
+    amount = payload.get("amount")
+    if isinstance(amount, bool):
+        return jsonify({"error": "invalid amount"}), 400
+    if isinstance(amount, float) and amount.is_integer():
+        amount = int(amount)
+    if not isinstance(amount, int) or amount <= 0:
+        return jsonify({"error": "invalid amount"}), 400
+    data = _node_json(["topup_lightning.js", "create", str(amount)], timeout_sec=90.0)
+    if data.get("error"):
+        return jsonify(data), 400
+    return jsonify(data)
+
+
+@app.route("/api/topup/lightning/claim", methods=["POST"])
+def lightning_claim():
+    payload = request.get_json(silent=True) or {}
+    pending_swap = payload.get("pendingSwap")
+    if pending_swap is None:
+        return jsonify({"error": "missing pending swap"}), 400
+    try:
+        pending_json = json.dumps(pending_swap, separators=(",", ":"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "invalid pending swap"}), 400
+    data = _node_json(["topup_lightning.js", "claim", pending_json], timeout_sec=180.0)
+    if data.get("error"):
+        return jsonify(data), 400
+    return jsonify(data)
+
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    _port = int(os.environ.get("PORT", os.environ.get("FAUCET_PORT", "5000")))
+    app.run(host="0.0.0.0", port=_port, threaded=True)

@@ -166,23 +166,7 @@ document.querySelectorAll("[data-copy]").forEach((btn) => {
   const THRESHOLD_PX = 72;
   const SHOW_AFTER_PX = 10;
 
-  if (!document.getElementById("zen-ptr-style")) {
-    const st = document.createElement("style");
-    st.id = "zen-ptr-style";
-    st.textContent =
-      "@keyframes zen-ptr-spin{to{transform:rotate(360deg)}}" +
-      "#zen-ptr-holder.zen-ptr-active .zen-ptr-glyph{" +
-      "animation:zen-ptr-spin 0.68s linear infinite;" +
-      "will-change:transform;" +
-      "}" +
-      "@media (prefers-reduced-motion:reduce){" +
-      "#zen-ptr-holder.zen-ptr-active .zen-ptr-glyph{animation:none}" +
-      "}";
-    document.head.appendChild(st);
-  }
-
   const holder = document.createElement("div");
-  holder.id = "zen-ptr-holder";
   holder.setAttribute("aria-hidden", "true");
   holder.style.cssText = [
     "position:fixed",
@@ -196,12 +180,10 @@ document.querySelectorAll("[data-copy]").forEach((btn) => {
     "color:inherit",
   ].join(";");
   holder.innerHTML =
-    '<div class="zen-ptr-glyph" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;transform-origin:50% 50%">' +
-    '<svg width="30" height="30" viewBox="0 0 40 40" style="display:block;overflow:visible" xmlns="http://www.w3.org/2000/svg">' +
-    '<g fill="none" stroke="currentColor" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" opacity="0.9">' +
-    '<path d="M9.4 23.2A10.6 10.6 0 1 1 28.8 15.8"/>' +
-    '<path d="M26.6 12.4l5.2 4.6-6.4 1.2"/>' +
-    "</g></svg></div>";
+    '<svg width="28" height="28" viewBox="0 0 40 40" style="display:block;overflow:visible" xmlns="http://www.w3.org/2000/svg">' +
+    '<path d="M 7 23.5 A 15.2 15.2 0 1 1 23.5 7.2" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" opacity="0.55"/>' +
+    '<path d="M 23.8 7 L 26 5.2 M 23.8 7 L 25.2 9.4" fill="none" stroke="currentColor" stroke-width="1.05" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>' +
+    "</svg>";
   document.body.appendChild(holder);
 
   let startY = 0;
@@ -219,14 +201,12 @@ document.querySelectorAll("[data-copy]").forEach((btn) => {
 
   function setIndicator(pull) {
     if (pull < SHOW_AFTER_PX) {
-      holder.classList.remove("zen-ptr-active");
       holder.style.opacity = "0";
       holder.style.transform = "translateX(-50%) translateY(0)";
       return;
     }
-    holder.classList.add("zen-ptr-active");
     const t = Math.min(1, pull / THRESHOLD_PX);
-    holder.style.opacity = String(0.14 + t * 0.8);
+    holder.style.opacity = String(0.12 + t * 0.78);
     const drift = Math.min(12, pull * 0.14);
     holder.style.transform = `translateX(-50%) translateY(${drift}px)`;
   }
@@ -291,4 +271,307 @@ document.querySelectorAll("[data-copy]").forEach((btn) => {
 
   document.addEventListener("touchend", endPull, { passive: true });
   document.addEventListener("touchcancel", endPull, { passive: true });
+})();
+
+(() => {
+  try {
+    const u = new URL(window.location.href);
+    if (u.searchParams.has("ln_topup")) {
+      u.searchParams.delete("ln_topup");
+      u.searchParams.delete("_cb");
+      const next = u.pathname + (u.search ? u.search : "") + u.hash;
+      window.history.replaceState({}, "", next);
+    }
+  } catch (_) {
+    /* ignore */
+  }
+})();
+
+const LN_MIN_SATS = 333;
+
+function lnClaimLooksFatal(message) {
+  if (!message || typeof message !== "string") return false;
+  const m = message.toLowerCase();
+  if (
+    m.includes("not ready") ||
+    m.includes("pending") ||
+    m.includes("waiting") ||
+    m.includes("will retry")
+  ) {
+    return false;
+  }
+  return (
+    m.includes("expired") ||
+    m.includes("swap not found") ||
+    m.includes("unknown swap") ||
+    m.includes("invalid swap") ||
+    m.includes("invoice expired")
+  );
+}
+
+/** Prior request already completed the on-chain claim; treat as success. */
+function lnClaimErrorMeansAlreadyDone(message) {
+  if (!message || typeof message !== "string") return false;
+  const m = message.toLowerCase();
+  return m.includes("already spent") || m.includes("vhtlc is already spent");
+}
+
+function lnClaimJsonSuccess(data) {
+  if (!data || typeof data !== "object" || data.error) return false;
+  const t = data.txid;
+  if (t == null || t === "") return false;
+  const s = typeof t === "string" ? t.trim() : String(t);
+  return s.length > 0;
+}
+
+(() => {
+  const createBtn = document.getElementById("ln-create");
+  const amountInput = document.getElementById("ln-amount-input");
+  const note = document.getElementById("ln-note");
+  const lnAmountRow = document.getElementById("ln-amount-row");
+  const invoiceWrap = document.getElementById("ln-invoice");
+  const lnSuccess = document.getElementById("ln-success");
+  const qrImg = document.getElementById("ln-qr-img");
+  const invoiceText = document.getElementById("ln-invoice-text");
+  const copyBtn = document.getElementById("ln-copy");
+  if (!createBtn || !amountInput || !note || !invoiceWrap || !qrImg || !invoiceText || !copyBtn) return;
+
+  let pendingSwap = null;
+  let autoClaimRunning = false;
+  /** @type {ReturnType<typeof setInterval> | null} */
+  let balancePollTimer = null;
+  let lnTopupCompleted = false;
+  /** @type {AbortController | null} */
+  let claimAbort = null;
+  let sawHiddenWhileClaiming = false;
+
+  const setBusy = (busy) => {
+    createBtn.disabled = busy;
+    amountInput.disabled = busy;
+  };
+
+  const setNote = (text) => {
+    note.textContent = text;
+  };
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  function redirectLnTopup(state) {
+    if (balancePollTimer != null) {
+      clearInterval(balancePollTimer);
+      balancePollTimer = null;
+    }
+    const u = new URL(window.location.href);
+    u.searchParams.set("ln_topup", state);
+    u.searchParams.set("_cb", String(Date.now()));
+    window.location.replace(u.pathname + u.search + u.hash);
+  }
+
+  /**
+   * Swap completed: hide invoice/QR immediately, show appreciation, then reload so balance updates.
+   * In-page update runs first so a stuck navigation still leaves the right message instead of the QR.
+   */
+  function showLnTopupSuccessThenReload() {
+    if (lnTopupCompleted) return;
+    lnTopupCompleted = true;
+    if (balancePollTimer != null) {
+      clearInterval(balancePollTimer);
+      balancePollTimer = null;
+    }
+    pendingSwap = null;
+    autoClaimRunning = false;
+    invoiceWrap.hidden = true;
+    invoiceWrap.setAttribute("aria-hidden", "true");
+    qrImg.removeAttribute("src");
+    invoiceText.textContent = "";
+    if (lnAmountRow) lnAmountRow.hidden = true;
+    note.hidden = true;
+    if (lnSuccess) lnSuccess.hidden = false;
+    createBtn.disabled = true;
+    amountInput.disabled = true;
+    setBusy(false);
+    /* Let the inline appreciation sit; then reload for fresh balance — no ?ln_topup= (avoids duplicate banner). */
+    const ms = 4500;
+    window.setTimeout(() => {
+      window.location.reload();
+    }, ms);
+  }
+
+  /**
+   * When Lightning + Ark settle, the long POST /claim often never finishes in the browser
+   * (app switch, OS sleep, dev server). Poll available sats; any increase means top-up landed.
+   */
+  async function startBalancePollAfterInvoice() {
+    try {
+      const r = await fetch("/api/faucet/balance", { cache: "no-store" });
+      const j = await r.json();
+      if (j.error || typeof j.available !== "number") return;
+      const baseline = j.available;
+      if (balancePollTimer != null) clearInterval(balancePollTimer);
+      balancePollTimer = setInterval(async () => {
+        if (!pendingSwap || lnTopupCompleted) return;
+        try {
+          const r2 = await fetch("/api/faucet/balance", { cache: "no-store" });
+          const j2 = await r2.json();
+          if (j2.error || typeof j2.available !== "number") return;
+          if (j2.available > baseline) {
+            showLnTopupSuccessThenReload();
+          }
+        } catch (_) {
+          /* ignore */
+        }
+      }, 5000);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  /** Must be > Flask claim subprocess timeout so the browser always gets a response or AbortError. */
+  const CLAIM_FETCH_MS = 210000;
+
+  document.addEventListener("visibilitychange", () => {
+    if (!autoClaimRunning) return;
+    if (document.visibilityState === "hidden") {
+      sawHiddenWhileClaiming = true;
+      return;
+    }
+    if (document.visibilityState === "visible" && sawHiddenWhileClaiming && claimAbort) {
+      sawHiddenWhileClaiming = false;
+      /* After paying in an external wallet app, the in-flight fetch often stalls; abort and retry. */
+      claimAbort.abort();
+    }
+  });
+
+  async function runAutoClaim() {
+    if (autoClaimRunning || !pendingSwap) return;
+    autoClaimRunning = true;
+    let failures = 0;
+    const maxFailures = 90;
+    setNote("pay the invoice. settling automatically…");
+    while (pendingSwap) {
+      setNote("waiting for lightning & ark settlement…");
+      const ac = new AbortController();
+      claimAbort = ac;
+      const killTimer = setTimeout(() => ac.abort(), CLAIM_FETCH_MS);
+      try {
+        const res = await fetch("/api/topup/lightning/claim", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pendingSwap }),
+          signal: ac.signal,
+        });
+        const raw = await res.text();
+        let data = {};
+        try {
+          data = raw ? JSON.parse(raw) : {};
+        } catch (_) {
+          data = {};
+        }
+        if (lnClaimJsonSuccess(data)) {
+          showLnTopupSuccessThenReload();
+          return;
+        }
+        if (res.status === 429) {
+          setNote("too many requests — waiting to retry…");
+          await sleep(15000);
+          continue;
+        }
+        /* 502/503 from proxies or gunicorn worker kills — retry, do not treat as final failure */
+        if (res.status >= 500) {
+          failures += 1;
+          if (failures >= maxFailures) {
+            redirectLnTopup("obstructed");
+            return;
+          }
+          setNote("connection hiccup — retrying settlement…");
+          await sleep(4000);
+          continue;
+        }
+        const errStr = data.error || "not ready yet — will retry";
+        if (res.status === 400 && lnClaimErrorMeansAlreadyDone(errStr)) {
+          showLnTopupSuccessThenReload();
+          return;
+        }
+        if (res.status === 400 && lnClaimLooksFatal(errStr)) {
+          redirectLnTopup("obstructed");
+          return;
+        }
+        failures += 1;
+        if (failures >= maxFailures) {
+          redirectLnTopup("obstructed");
+          return;
+        }
+        setNote(errStr.length > 100 ? errStr.slice(0, 100) + "…" : errStr);
+      } catch (e) {
+        if (e.name === "AbortError") {
+          setNote("still settling — retrying…");
+          await sleep(800);
+          continue;
+        }
+        failures += 1;
+        if (failures >= maxFailures) {
+          redirectLnTopup("obstructed");
+          return;
+        }
+        const msg =
+          e.name === "TimeoutError"
+            ? "still settling… will retry"
+            : e.message || "retrying…";
+        setNote(msg);
+      } finally {
+        clearTimeout(killTimer);
+        claimAbort = null;
+      }
+      await sleep(7000);
+    }
+    autoClaimRunning = false;
+    setBusy(false);
+  }
+
+  createBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (autoClaimRunning) return;
+    const raw = amountInput.value.trim();
+    const amount = Math.round(Number(raw));
+    if (!Number.isFinite(amount) || !Number.isInteger(amount) || amount < LN_MIN_SATS) {
+      setNote(`enter at least ${LN_MIN_SATS} sats`);
+      return;
+    }
+    setBusy(true);
+    setNote("creating lightning invoice...");
+    try {
+      const res = await fetch("/api/topup/lightning/invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount }),
+      });
+      const text = await res.text();
+      let data;
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        setNote(
+          `server returned ${res.status} (not JSON). Reload this page from the same host/port as the faucet, or check the server log.`,
+        );
+        setBusy(false);
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(data.error || "could not create invoice");
+      }
+      pendingSwap = data.pendingSwap;
+      lnTopupCompleted = false;
+      invoiceText.textContent = data.invoice;
+      copyBtn.setAttribute("data-copy", data.invoice);
+      qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(data.invoice)}`;
+      invoiceWrap.hidden = false;
+      createBtn.disabled = true;
+      amountInput.disabled = true;
+      void startBalancePollAfterInvoice();
+      void runAutoClaim();
+    } catch (err) {
+      setNote(err.message || "invoice error");
+      setBusy(false);
+    }
+  });
 })();
