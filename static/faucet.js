@@ -164,11 +164,52 @@ document.querySelectorAll("[data-copy]").forEach((btn) => {
   if (!isMobile) return;
 
   const THRESHOLD_PX = 72;
+  const SHOW_AFTER_PX = 10;
+
+  const holder = document.createElement("div");
+  holder.setAttribute("aria-hidden", "true");
+  holder.style.cssText = [
+    "position:fixed",
+    "top:max(10px,env(safe-area-inset-top))",
+    "left:50%",
+    "transform:translateX(-50%) translateY(0)",
+    "opacity:0",
+    "pointer-events:none",
+    "z-index:6",
+    "transition:opacity 0.22s ease",
+    "color:inherit",
+  ].join(";");
+  holder.innerHTML =
+    '<svg width="28" height="28" viewBox="0 0 40 40" style="display:block;overflow:visible" xmlns="http://www.w3.org/2000/svg">' +
+    '<path d="M 7 23.5 A 15.2 15.2 0 1 1 23.5 7.2" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round" opacity="0.55"/>' +
+    '<path d="M 23.8 7 L 26 5.2 M 23.8 7 L 25.2 9.4" fill="none" stroke="currentColor" stroke-width="1.05" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>' +
+    "</svg>";
+  document.body.appendChild(holder);
 
   let startY = 0;
   let startX = 0;
   let tracking = false;
   let maxPull = 0;
+
+  function syncInk() {
+    try {
+      holder.style.color = getComputedStyle(document.body).color || "";
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function setIndicator(pull) {
+    if (pull < SHOW_AFTER_PX) {
+      holder.style.opacity = "0";
+      holder.style.transform = "translateX(-50%) translateY(0)";
+      return;
+    }
+    const t = Math.min(1, pull / THRESHOLD_PX);
+    holder.style.opacity = String(0.12 + t * 0.78);
+    const drift = Math.min(12, pull * 0.14);
+    holder.style.transform = `translateX(-50%) translateY(${drift}px)`;
+  }
 
   function atScrollTop() {
     if (window.scrollY > 2) return false;
@@ -192,10 +233,12 @@ document.querySelectorAll("[data-copy]").forEach((btn) => {
       const t = e.touches[0];
       const el = document.elementFromPoint(t.clientX, t.clientY);
       if (skipTarget(el)) return;
+      syncInk();
       startY = t.clientY;
       startX = t.clientX;
       tracking = true;
       maxPull = 0;
+      setIndicator(0);
     },
     { passive: true }
   );
@@ -209,6 +252,7 @@ document.querySelectorAll("[data-copy]").forEach((btn) => {
       const dx = t.clientX - startX;
       if (dy > 0 && dy > Math.abs(dx)) {
         maxPull = Math.max(maxPull, dy);
+        setIndicator(maxPull);
       }
     },
     { passive: true }
@@ -219,8 +263,10 @@ document.querySelectorAll("[data-copy]").forEach((btn) => {
     tracking = false;
     if (maxPull >= THRESHOLD_PX && atScrollTop()) {
       location.reload();
+      return;
     }
     maxPull = 0;
+    setIndicator(0);
   }
 
   document.addEventListener("touchend", endPull, { passive: true });
