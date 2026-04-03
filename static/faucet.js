@@ -156,3 +156,73 @@ document.querySelectorAll("[data-copy]").forEach((btn) => {
     setOpen(false);
   });
 })();
+
+(() => {
+  const isMobile =
+    window.matchMedia("(pointer: coarse)").matches ||
+    window.matchMedia("(max-width: 720px)").matches;
+  if (!isMobile) return;
+
+  const THRESHOLD_PX = 72;
+
+  let startY = 0;
+  let startX = 0;
+  let tracking = false;
+  let maxPull = 0;
+
+  function atScrollTop() {
+    if (window.scrollY > 2) return false;
+    const glass = document.querySelector(".glass");
+    if (glass && glass.scrollTop > 2) return false;
+    return true;
+  }
+
+  function skipTarget(el) {
+    if (!el || !el.closest) return true;
+    return !!el.closest(
+      "button, a, input, textarea, select, label, [role='button']"
+    );
+  }
+
+  document.addEventListener(
+    "touchstart",
+    (e) => {
+      if (e.touches.length !== 1) return;
+      if (!atScrollTop()) return;
+      const t = e.touches[0];
+      const el = document.elementFromPoint(t.clientX, t.clientY);
+      if (skipTarget(el)) return;
+      startY = t.clientY;
+      startX = t.clientX;
+      tracking = true;
+      maxPull = 0;
+    },
+    { passive: true }
+  );
+
+  document.addEventListener(
+    "touchmove",
+    (e) => {
+      if (!tracking || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      const dy = t.clientY - startY;
+      const dx = t.clientX - startX;
+      if (dy > 0 && dy > Math.abs(dx)) {
+        maxPull = Math.max(maxPull, dy);
+      }
+    },
+    { passive: true }
+  );
+
+  function endPull() {
+    if (!tracking) return;
+    tracking = false;
+    if (maxPull >= THRESHOLD_PX && atScrollTop()) {
+      location.reload();
+    }
+    maxPull = 0;
+  }
+
+  document.addEventListener("touchend", endPull, { passive: true });
+  document.addEventListener("touchcancel", endPull, { passive: true });
+})();
