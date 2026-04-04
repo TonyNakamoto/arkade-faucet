@@ -14,6 +14,7 @@ import {
 import { bech32 } from "@scure/base";
 import QRCode from "qrcode";
 import { loadMnemonicPhrase } from "./mnemonic_env.mjs";
+import { DRIP_AMOUNT_SATS } from "./drip_config.mjs";
 
 const ARK_SERVER_URL = process.env.ARK_SERVER_URL ?? "https://arkade.computer";
 const INDEXER_URL = process.env.INDEXER_URL;
@@ -57,7 +58,6 @@ async function main() {
 
   const address = await wallet.getAddress();
   const balance = await wallet.getBalance();
-  const drip = 21;
 
   const qrPngBase64 = await QRCode.toDataURL(address, {
     errorCorrectionLevel: "M",
@@ -67,7 +67,7 @@ async function main() {
 
   const payload = {
     address,
-    dripAmount: drip,
+    dripAmount: DRIP_AMOUNT_SATS,
     balance,
     explorerUrl: `https://arkade.space/address/${address}`,
     qrPngBase64,

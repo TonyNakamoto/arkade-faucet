@@ -35,7 +35,7 @@ Buying a **custom** domain like `zen-ark-faucet.com` costs roughly **$10–15/ye
 3. In **Environment**, add:
    - `ARKADE_MNEMONIC` = your 12 words (single line) — mark as **Secret**.
    - `FAUCET_PUBLIC_URL` = `https://YOUR-SERVICE-NAME.onrender.com/` (trailing slash optional).
-   - Drip size is **not** an env var: edit `DRIP_AMOUNT` in `arkade_logic.js` and the matching `drip` value in `faucet_info.js` (currently **21** sats each).
+   - Drip size is **not** an env var: edit `DRIP_AMOUNT_SATS` in `drip_config.mjs` (used by `arkade_logic.js` and `faucet_info.js`).
 4. Deploy. Open the URL and test.
 
 **Note:** Free tier may spin down when idle; first visitor after idle waits ~1 minute.
