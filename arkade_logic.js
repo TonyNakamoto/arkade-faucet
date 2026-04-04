@@ -27,7 +27,7 @@ import { loadMnemonicPhrase } from "./mnemonic_env.mjs";
 
 const ARK_SERVER_URL = process.env.ARK_SERVER_URL ?? "https://arkade.computer";
 const INDEXER_URL = process.env.INDEXER_URL;
-const DRIP_AMOUNT = 5;
+const DRIP_AMOUNT = 21;
 const DEBUG = process.env.ARK_DEBUG === "1";
 
 function logDebug(...args) {

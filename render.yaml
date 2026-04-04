@@ -12,8 +12,7 @@ services:
         sync: false
       - key: FAUCET_PUBLIC_URL
         sync: false
-      - key: DRIP_AMOUNT
-        value: "1"
+      # Drip sats: edit arkade_logic.js + faucet_info.js (not an env var)
       # Stricter than local defaults — tune in dashboard if needed
       - key: FAUCET_GLOBAL_PER_MINUTE
         value: "20"

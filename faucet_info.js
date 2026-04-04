@@ -57,7 +57,7 @@ async function main() {
 
   const address = await wallet.getAddress();
   const balance = await wallet.getBalance();
-  const drip = 5;
+  const drip = 21;
 
   const qrPngBase64 = await QRCode.toDataURL(address, {
     errorCorrectionLevel: "M",
