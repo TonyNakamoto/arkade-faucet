@@ -1,8 +1,10 @@
 import html
 import json
+import logging
 import os
 import sqlite3
 import subprocess
+import threading
 import time
 from flask import Flask, jsonify, redirect, request, url_for
 
@@ -23,6 +25,39 @@ if _mnemonic_file and not os.path.isabs(_mnemonic_file):
 
 app = Flask(__name__)
 
+_claim_logger = logging.getLogger("faucet.claim")
+_claim_logger.setLevel(logging.INFO)
+if not _claim_logger.handlers:
+    _claim_handler = logging.StreamHandler()
+    _claim_handler.setFormatter(logging.Formatter("%(message)s"))
+    _claim_logger.addHandler(_claim_handler)
+    _claim_logger.propagate = False
+
+
+def _client_ip() -> str:
+    """Client IP; first hop in X-Forwarded-When behind a reverse proxy (e.g. Render)."""
+    xf = (request.headers.get("X-Forwarded-For") or "").strip()
+    if xf:
+        return xf.split(",")[0].strip() or "unknown"
+    return (request.remote_addr or "").strip() or "unknown"
+
+
+def _addr_for_log(addr: str, keep: int = 10) -> str:
+    if len(addr) <= (keep * 2 + 3):
+        return addr
+    return f"{addr[:keep]}…{addr[-keep:]}"
+
+
+def _log_claim(event: str, **fields: object) -> None:
+    """One JSON line per event for Render log grep / dashboards. Disable with FAUCET_CLAIM_LOG=0."""
+    if os.environ.get("FAUCET_CLAIM_LOG", "1").strip() == "0":
+        return
+    payload: dict = {"event": event, "ip": _client_ip(), **fields}
+    _claim_logger.info(json.dumps(payload, separators=(",", ":"), ensure_ascii=False))
+
+
+_FAUCET_GLOBAL_PER_MINUTE = int(os.environ.get("FAUCET_GLOBAL_PER_MINUTE", "20"))
+
 try:
     from flask_limiter import Limiter
     from flask_limiter.util import get_remote_address
@@ -30,7 +65,7 @@ try:
     _limiter = Limiter(
         app=app,
         key_func=get_remote_address,
-        default_limits=["60 per minute"],
+        default_limits=[f"{_FAUCET_GLOBAL_PER_MINUTE} per minute"],
         storage_uri="memory://",
     )
 except ImportError:
@@ -42,6 +77,9 @@ except ImportError:
         def limit(self, *_a, **_k):
             return _noop_decorator
 
+        def exempt(self, f):
+            return f
+
     _limiter = _NoopLim()
 
 # Background art (decorative). Falls back to gradient if an image fails to load.
@@ -51,6 +89,77 @@ _ADDR_LIMIT_WINDOW_HOURS = float(os.environ.get("FAUCET_ADDR_WINDOW_HOURS", "24"
 _ADDR_LIMIT_WINDOW_SECONDS = int(_ADDR_LIMIT_WINDOW_HOURS * 3600)
 _CLAIM_RETENTION_DAYS = int(os.environ.get("FAUCET_CLAIM_RETENTION_DAYS", "7"))
 _CLAIM_RETENTION_SECONDS = _CLAIM_RETENTION_DAYS * 24 * 3600
+
+# Rate limits (Flask-Limiter). Burst = short window; stops scripted hammer before hourly cap bites.
+# Do not add tight per-minute limits on /api/*/lightning/claim — the UI polls often during settlement.
+_FAUCET_CLAIM_BURST = os.environ.get("FAUCET_CLAIM_BURST", "4 per minute")
+_FAUCET_CLAIM_HOUR = os.environ.get("FAUCET_CLAIM_PER_HOUR", "8 per hour")
+_FAUCET_LN_INVOICE_BURST = os.environ.get("FAUCET_LIGHTNING_INVOICE_BURST", "5 per minute")
+_FAUCET_LN_INVOICE_HOUR = os.environ.get("FAUCET_LIGHTNING_INVOICE_PER_HOUR", "20 per hour")
+
+# POST /claim: min spacing per IP (humans OK; burst scripts are not). Abuse: N failures → temporary block.
+_FAUCET_CLAIM_MIN_SECONDS = float(os.environ.get("FAUCET_CLAIM_MIN_SECONDS", "4"))
+_FAUCET_CLAIM_FAIL_WINDOW_MIN = int(os.environ.get("FAUCET_CLAIM_FAIL_WINDOW_MIN", "10"))
+_FAUCET_CLAIM_FAIL_THRESHOLD = int(os.environ.get("FAUCET_CLAIM_FAIL_THRESHOLD", "6"))
+_FAUCET_CLAIM_FAIL_BLOCK_SEC = int(os.environ.get("FAUCET_CLAIM_FAIL_BLOCK_SEC", "600"))
+
+_claim_abuse_lock = threading.Lock()
+_claim_post_last_ts: dict[str, float] = {}
+_claim_fail_times: dict[str, list[float]] = {}
+_claim_block_until: dict[str, float] = {}
+
+
+def _claim_abuse_blocked(ip: str) -> bool:
+    now = time.time()
+    with _claim_abuse_lock:
+        until = _claim_block_until.get(ip, 0.0)
+        if until > now:
+            return True
+        if until and until <= now:
+            del _claim_block_until[ip]
+        return False
+
+
+def _claim_begin_post(ip: str) -> tuple[bool, str]:
+    """Reserve min-interval slot for POST /claim. Returns (ok, reason) with reason 'abuse'|'min_sec'."""
+    now = time.time()
+    with _claim_abuse_lock:
+        if _claim_block_until.get(ip, 0.0) > now:
+            return False, "abuse"
+        min_s = _FAUCET_CLAIM_MIN_SECONDS
+        if min_s > 0:
+            last = _claim_post_last_ts.get(ip, 0.0)
+            if now - last < min_s:
+                return False, "min_sec"
+        _claim_post_last_ts[ip] = now
+        return True, ""
+
+
+def _prune_fail_times(ip: str, window_sec: float) -> None:
+    now = time.time()
+    cutoff = now - window_sec
+    lst = _claim_fail_times.get(ip)
+    if not lst:
+        return
+    lst[:] = [t for t in lst if t >= cutoff]
+    if not lst:
+        del _claim_fail_times[ip]
+
+
+def _record_claim_failure(ip: str, *, event: str) -> None:
+    """Count invalid ark / errors toward a temporary block. Successful claims do not call this."""
+    if _FAUCET_CLAIM_FAIL_THRESHOLD <= 0:
+        return
+    now = time.time()
+    window_sec = _FAUCET_CLAIM_FAIL_WINDOW_MIN * 60
+    with _claim_abuse_lock:
+        _prune_fail_times(ip, window_sec)
+        lst = _claim_fail_times.setdefault(ip, [])
+        lst.append(now)
+        if len(lst) >= _FAUCET_CLAIM_FAIL_THRESHOLD:
+            _claim_block_until[ip] = now + _FAUCET_CLAIM_FAIL_BLOCK_SEC
+            lst.clear()
+            _log_claim(event, outcome="abuse_block", threshold=_FAUCET_CLAIM_FAIL_THRESHOLD)
 
 
 @app.after_request
@@ -587,6 +696,29 @@ def _zen_shell_open(body_class: str) -> str:
       overflow-wrap: anywhere;
       resize: none;
     }}
+    /* Honeypot (bot trap): visually hidden, not in tab order; wrapper aria-hidden for AT. */
+    .claim-form {{
+      position: relative;
+    }}
+    .faucet-hp-wrap {{
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      clip-path: inset(50%);
+      white-space: nowrap;
+      border: 0;
+      pointer-events: none;
+    }}
+    .faucet-hp-wrap input {{
+      position: absolute;
+      opacity: 0;
+      width: 1px;
+      height: 1px;
+    }}
     button[type="submit"] {{
       width: 100%;
       margin-top: 0.45rem;
@@ -1098,6 +1230,7 @@ def _short_addr(addr: str, keep: int = 12) -> str:
 
 
 @app.route("/health")
+@_limiter.exempt
 def health():
     """Fast 200 for load balancers (Render, etc.) — do not call Node here."""
     return "ok", 200, {"Content-Type": "text/plain; charset=utf-8"}
@@ -1132,6 +1265,8 @@ def home():
             f'width="220" height="220" alt="" /></div>'
         )
 
+    claim_abuse = request.args.get("claim_abuse")
+    claim_min = request.args.get("claim_min")
     invalid = request.args.get("invalid")
     addr_limit = request.args.get("addr_limit")
     ln_topup = request.args.get("ln_topup")
@@ -1139,7 +1274,15 @@ def home():
     alert = ""
     submit_label = "drip"
     submit_attrs = ""
-    if addr_limit:
+    if claim_abuse:
+        alert = (
+            '<div class="alert err" style="text-align:center">many missteps. rest before the next drop.</div>'
+        )
+    elif claim_min:
+        alert = (
+            '<div class="alert err" style="text-align:center">a breath between each request.</div>'
+        )
+    elif addr_limit:
         alert = (
             '<div class="alert err" style="text-align:center">five drops have fallen. even the earth needs time to drink.</div>'
         )
@@ -1201,7 +1344,11 @@ def home():
         + '<div class="col col-receive">'
         + '<p class="receive-title">receive</p>'
         + '<p class="lead">paste your <code>ark1…</code> address</p>'
-        + '<form method="post" action="/claim">'
+        + '<form method="post" action="/claim" class="claim-form" autocomplete="off">'
+        + '<div class="faucet-hp-wrap" aria-hidden="true">'
+        + '<input type="text" name="website" value="" tabindex="-1" autocomplete="off" '
+        + 'autocorrect="off" spellcheck="false" inputmode="none" aria-hidden="true" />'
+        + "</div>"
         + '<textarea name="address" placeholder="ark1…" required autocomplete="off" rows="1"></textarea>'
         + f'<button type="submit"{submit_attrs}>{submit_label}</button>'
         + "</form>"
@@ -1213,19 +1360,42 @@ def home():
 
 
 @app.route("/claim", methods=["POST"])
-@_limiter.limit("10 per hour")
+@_limiter.limit(_FAUCET_CLAIM_HOUR)
+@_limiter.limit(_FAUCET_CLAIM_BURST)
 def claim_post():
+    ip = _client_ip()
+    ok, reason = _claim_begin_post(ip)
+    if not ok:
+        if reason == "abuse":
+            _log_claim("claim_post", outcome="abuse_blocked")
+            return redirect(url_for("home", claim_abuse=1))
+        _log_claim("claim_post", outcome="min_interval")
+        return redirect(url_for("home", claim_min=1))
+    if (request.form.get("website") or "").strip():
+        _log_claim("claim_post", outcome="honeypot")
+        _record_claim_failure(ip, event="claim_post")
+        return redirect(url_for("home"))
     address = (request.form.get("address") or "").strip()
     if not address.startswith("ark1"):
+        _log_claim("claim_post", outcome="invalid_prefix", address=_addr_for_log(address) if address else "")
+        _record_claim_failure(ip, event="claim_post")
         return redirect(url_for("home", invalid=1))
     if _address_claims_in_window(address) >= _ADDR_LIMIT_MAX:
+        _log_claim("claim_post", outcome="addr_limit", address=_addr_for_log(address))
         return redirect(url_for("home", addr_limit=1))
+    _log_claim("claim_post", outcome="redirect_claim", address=_addr_for_log(address))
     return redirect(url_for("claim", user_address=address))
 
 
 @app.route("/claim/<user_address>")
-@_limiter.limit("10 per hour")
+@_limiter.limit(_FAUCET_CLAIM_HOUR)
+@_limiter.limit(_FAUCET_CLAIM_BURST)
 def claim(user_address):
+    ip = _client_ip()
+    if _claim_abuse_blocked(ip):
+        _log_claim("claim_get", outcome="abuse_blocked", address=_addr_for_log(user_address))
+        return redirect(url_for("home", claim_abuse=1))
+
     result = subprocess.run(
         ["node", "arkade_logic.js", user_address],
         capture_output=True,
@@ -1242,6 +1412,7 @@ def claim(user_address):
         _record_successful_claim(user_address)
         txid = _parse_success_txid(result.stdout)
         if txid:
+            _log_claim("claim_get", outcome="success", address=_addr_for_log(user_address), txid_short=_addr_for_log(txid, 12))
             explorer = _tx_explorer_url(txid)
             short_tx = txid if len(txid) <= 20 else f"{txid[:10]}…{txid[-8:]}"
             inner = (
@@ -1256,6 +1427,7 @@ def claim(user_address):
                 "</div>"
             )
             return _zen_shell_open("sub sent-view") + inner + zen_shell_close()
+        _log_claim("claim_get", outcome="success_no_txid", address=_addr_for_log(user_address))
         inner = (
             '<div class="subwrap sentwrap">'
             f'<div class="brand"><h1>sent</h1></div>'
@@ -1266,8 +1438,12 @@ def claim(user_address):
         return _zen_shell_open("sub sent-view") + inner + zen_shell_close()
 
     if "Invalid Ark address" in raw_detail:
+        _log_claim("claim_get", outcome="invalid_ark", address=_addr_for_log(user_address))
+        _record_claim_failure(ip, event="claim_get")
         return redirect(url_for("home", invalid=1))
 
+    _log_claim("claim_get", outcome="error", address=_addr_for_log(user_address), http_status=400)
+    _record_claim_failure(ip, event="claim_get")
     inner = (
         '<div class="subwrap">'
         f'<div class="brand"><h1>pause</h1></div>'
@@ -1301,7 +1477,8 @@ def lightning_limits():
 
 
 @app.route("/api/topup/lightning/invoice", methods=["POST"])
-@_limiter.limit("20 per hour")
+@_limiter.limit(_FAUCET_LN_INVOICE_HOUR)
+@_limiter.limit(_FAUCET_LN_INVOICE_BURST)
 def lightning_invoice():
     payload = request.get_json(silent=True) or {}
     amount = payload.get("amount")
@@ -1342,7 +1519,8 @@ def donation_lightning_limits():
 
 
 @app.route("/api/donation/lightning/invoice", methods=["POST"])
-@_limiter.limit("20 per hour")
+@_limiter.limit(_FAUCET_LN_INVOICE_HOUR)
+@_limiter.limit(_FAUCET_LN_INVOICE_BURST)
 def donation_lightning_invoice():
     payload = request.get_json(silent=True) or {}
     amount = payload.get("amount")

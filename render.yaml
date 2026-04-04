@@ -14,3 +14,18 @@ services:
         sync: false
       - key: DRIP_AMOUNT
         value: "1"
+      # Stricter than local defaults — tune in dashboard if needed
+      - key: FAUCET_GLOBAL_PER_MINUTE
+        value: "20"
+      - key: FAUCET_CLAIM_BURST
+        value: "4 per minute"
+      - key: FAUCET_CLAIM_PER_HOUR
+        value: "8 per hour"
+      - key: FAUCET_CLAIM_MIN_SECONDS
+        value: "4"
+      - key: FAUCET_CLAIM_FAIL_WINDOW_MIN
+        value: "10"
+      - key: FAUCET_CLAIM_FAIL_THRESHOLD
+        value: "6"
+      - key: FAUCET_CLAIM_FAIL_BLOCK_SEC
+        value: "600"
