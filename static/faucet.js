@@ -310,6 +310,21 @@ document.querySelectorAll("[data-copy]").forEach((btn) => {
 
 const LN_MIN_SATS = 333;
 
+/** Prefer server-generated PNG — long BOLT11 in qrserver GET URLs can truncate. (Faucet top-up only.) */
+function lnTopupInvoiceQrSrc(data) {
+  if (data && typeof data.invoiceQrDataUrl === "string" && data.invoiceQrDataUrl.startsWith("data:image/")) {
+    return data.invoiceQrDataUrl;
+  }
+  const inv = data && typeof data.invoice === "string" ? data.invoice : "";
+  return `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(inv)}`;
+}
+
+/** BOLT11 `expiry` is seconds of validity from invoice time (boltz-swap decodeInvoice). */
+function lnTopupPayWithinMinutes(expiry) {
+  if (typeof expiry !== "number" || !Number.isFinite(expiry) || expiry <= 0) return null;
+  return Math.max(1, Math.round(expiry / 60));
+}
+
 function lnClaimLooksFatal(message) {
   if (!message || typeof message !== "string") return false;
   const m = message.toLowerCase();
@@ -326,7 +341,9 @@ function lnClaimLooksFatal(message) {
     m.includes("swap not found") ||
     m.includes("unknown swap") ||
     m.includes("invalid swap") ||
-    m.includes("invoice expired")
+    m.includes("invoice expired") ||
+    m.includes("incorrect payment details") ||
+    m.includes("no longer be claimed")
   );
 }
 
@@ -364,6 +381,8 @@ function lnClaimJsonSuccess(data) {
   /** @type {AbortController | null} */
   let claimAbort = null;
   let sawHiddenWhileClaiming = false;
+  /** @type {number | null} */
+  let lnPayWithinMins = null;
 
   const setBusy = (busy) => {
     createBtn.disabled = busy;
@@ -399,6 +418,7 @@ function lnClaimJsonSuccess(data) {
       balancePollTimer = null;
     }
     pendingSwap = null;
+    lnPayWithinMins = null;
     autoClaimRunning = false;
     invoiceWrap.hidden = true;
     invoiceWrap.setAttribute("aria-hidden", "true");
@@ -468,9 +488,12 @@ function lnClaimJsonSuccess(data) {
     autoClaimRunning = true;
     let failures = 0;
     const maxFailures = 90;
-    setNote("pay the invoice. settling automatically…");
     while (pendingSwap) {
-      setNote("waiting for lightning & ark settlement…");
+      setNote(
+        lnPayWithinMins != null
+          ? `pay within ~${lnPayWithinMins} min — waiting for lightning & ark…`
+          : "waiting for lightning & ark settlement…",
+      );
       const ac = new AbortController();
       claimAbort = ac;
       const killTimer = setTimeout(() => ac.abort(), CLAIM_FETCH_MS);
@@ -581,10 +604,11 @@ function lnClaimJsonSuccess(data) {
         throw new Error(data.error || "could not create invoice");
       }
       pendingSwap = data.pendingSwap;
+      lnPayWithinMins = lnTopupPayWithinMinutes(data.expiry);
       lnTopupCompleted = false;
       invoiceText.textContent = data.invoice;
       invoiceText.setAttribute("data-copy", data.invoice);
-      qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(data.invoice)}`;
+      qrImg.src = lnTopupInvoiceQrSrc(data);
       invoiceWrap.hidden = false;
       createBtn.disabled = true;
       amountInput.disabled = true;

@@ -8,6 +8,7 @@ import {
 import { ArkadeSwaps, BoltzSwapProvider } from "@arkade-os/boltz-swap";
 import { bech32 } from "@scure/base";
 import { loadMnemonicPhrase } from "./mnemonic_env.mjs";
+import QRCode from "qrcode";
 
 const ARK_SERVER_URL = process.env.ARK_SERVER_URL ?? "https://arkade.computer";
 const INDEXER_URL = process.env.INDEXER_URL;
@@ -155,6 +156,12 @@ async function makeLightning() {
     amount,
     description: "Top up arkade faucet",
   });
+  /** Avoid relying on a third-party GET URL for the QR — long BOLT11 strings can be truncated. */
+  const invoiceQrDataUrl = await QRCode.toDataURL(result.invoice, {
+    width: 220,
+    margin: 1,
+    errorCorrectionLevel: "M",
+  });
   console.log(
     JSON.stringify({
       amount: result.amount,
@@ -162,6 +169,7 @@ async function makeLightning() {
       expiry: result.expiry,
       paymentHash: result.paymentHash,
       pendingSwap: result.pendingSwap,
+      invoiceQrDataUrl,
       limits,
     })
   );
