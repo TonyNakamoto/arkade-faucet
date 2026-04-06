@@ -489,11 +489,7 @@ function lnClaimJsonSuccess(data) {
     let failures = 0;
     const maxFailures = 90;
     while (pendingSwap) {
-      setNote(
-        lnPayWithinMins != null
-          ? `pay within ~${lnPayWithinMins} min — waiting for lightning & ark…`
-          : "waiting for lightning & ark settlement…",
-      );
+      setNote("waiting for lightning");
       const ac = new AbortController();
       claimAbort = ac;
       const killTimer = setTimeout(() => ac.abort(), CLAIM_FETCH_MS);
