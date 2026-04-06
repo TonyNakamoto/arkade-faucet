@@ -1,6 +1,6 @@
 # arkade-faucet
 
-A small **web faucet** for [Arkade](https://docs.arkadeos.com/) — Flask UI, rate limits, optional Lightning top-up flows, and Node scripts that send **off-chain** drips using an Arkade wallet identity (`ARKADE_MNEMONIC`, `ARKADE_MNEMONIC_FILE`, or `ARKADE_NSEC`).
+A small **web faucet** for [Arkade](https://docs.arkadeos.com/) â€” Flask UI, rate limits, optional Lightning top-up flows, and Node scripts that send **off-chain** drips using an Arkade wallet identity (`ARKADE_MNEMONIC`, `ARKADE_MNEMONIC_FILE`, or `ARKADE_NSEC`).
 
 ---
 
@@ -45,7 +45,7 @@ From the repository root:
 Then open `http://localhost:5000/` (or set `PORT` / `FAUCET_PORT`).
 
 - Copy `env.example` to `.env` and adjust if needed.
-- Put your **12-word phrase** in `phrase.txt` (or use env vars as documented) — **`phrase.txt` is gitignored; never commit it.**
+- Put your **12-word phrase** in `phrase.txt` (or use env vars as documented) â€” **`phrase.txt` is gitignored; never commit it.**
 
 For deployment and secrets, see **[DEPLOY.md](DEPLOY.md)** and **[render.yaml](render.yaml)** if you use Render.
 
@@ -53,8 +53,8 @@ For deployment and secrets, see **[DEPLOY.md](DEPLOY.md)** and **[render.yaml](r
 
 ## Configuration
 
-- **`env.example`** — documented environment variables (public URL, rate limits, logging, etc.).
-- **Secrets** — set `ARKADE_MNEMONIC` or equivalent **only** in your host's secret store or local `.env`, not in git.
+- **`env.example`** â€” documented environment variables (public URL, rate limits, logging, etc.).
+- **Secrets** â€” set `ARKADE_MNEMONIC` or equivalent **only** in your host's secret store or local `.env`, not in git.
 
 ---
 
@@ -66,7 +66,7 @@ See **[SECURITY.md](SECURITY.md)** for how to report vulnerabilities.
 
 ## License
 
-[MIT License](LICENSE) — Copyright (c) 2026 Tony Nakamoto.
+[MIT License](LICENSE) â€” Copyright (c) 2026 Tony Nakamoto.
 
 You may use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software subject to the conditions in the license file. **The software is provided without warranty; see the disclaimer above and the license text.**
 
@@ -80,7 +80,7 @@ Issues and pull requests are welcome. By contributing, you agree that your contr
 
 ## About
 
-Hey! This faucet was created by using **cursor** and no experience with coding. The main idea is to share sats, spark curiosity, and educate people about the ark protocol. Stay hydrated and liberated.
+Hey! This faucet was created by using **cursor**, no experience with coding and trust me bro custodial design. The main idea is to share sats, spark curiosity, and educate people about the ark protocol. Stay hydrated and liberated.
 
 > *They say, darkness we defeat, trust me.... we fight for light*
 
